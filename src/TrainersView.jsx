@@ -1,0 +1,56 @@
+// Eğitmen eklerken auth.users'a da ekler, artık giriş yapabilir
+// Rakam klavyesi: telefon numeric
+import React, { useState, useEffect } from 'react';
+import { supabase, supabaseUrl, supabaseAnonKey } from './supabaseClient';
+import { createClient } from '@supabase/supabase-js';
+import { Plus, Trash, X, Phone, MessageSquare } from './Icons';
+const secondary = createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+
+export default function TrainersView() {
+  const [list, setList] = useState([]); const [loading, setLoading] = useState(true); const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ adi:'', telefon:'', email:'', sifre:'', rol:'Eğitmen' }); const [hata,setHata]=useState('');
+  useEffect(()=>{ getir(); },[]);
+  const getir = async()=>{ setLoading(true); const {data}=await supabase.from('kullanicilar').select('*').order('adi'); if(data) setList(data); setLoading(false); };
+  const ekle = async(e)=>{
+    e.preventDefault(); setHata('');
+    if(form.sifre.length<6){ setHata('Şifre en az 6 karakter'); return; }
+    try{
+      const { data, error } = await secondary.auth.signUp({ email: form.email, password: form.sifre, options:{ data:{ adi: form.adi, telefon: form.telefon, rol: form.rol } } });
+      if(error){
+        if(error.message.includes('already registered')){
+          // Zaten auth'da var, sadece kullanicilar'a linkle
+          const { data: signIn } = await secondary.auth.signInWithPassword({ email: form.email, password: form.sifre });
+          if(signIn?.user){
+            await supabase.from('kullanicilar').upsert([{ id: signIn.user.id, adi: form.adi, telefon: form.telefon, email: form.email, rol: form.rol, sifre_hash:'supabase_auth' }], { onConflict:'email' });
+            setOpen(false); getir(); alert('Email zaten vardı, şifre doğru, eşleştirildi');
+            await secondary.auth.signOut(); return;
+          }
+          throw new Error('Bu email zaten kayıtlı. Supabase > Authentication > Users > bu kullanıcıyı sil veya şifresini sıfırla, sonra tekrar dene.');
+        }
+        throw error;
+      }
+      if(data.user){ await supabase.from('kullanicilar').upsert([{ id: data.user.id, adi: form.adi, telefon: form.telefon, email: form.email, rol: form.rol, sifre_hash:'supabase_auth' }], { onConflict:'email' }); }
+      setOpen(false); setForm({adi:'',telefon:'',email:'',sifre:'',rol:'Eğitmen'}); setTimeout(getir,800);
+      await secondary.auth.signOut();
+      alert('Eğitmen oluşturuldu, giriş yapabilir');
+    }catch(err){ setHata(err.message); }
+  };
+  const sil = async(id,adi)=>{ if(!confirm(`${adi} silinsin mi?`)) return; const {count}=await supabase.from('randevular').select('*',{count:'exact',head:true}).eq('egitmen_id',id); if(count>0){ alert('Randevuları var'); return; } await supabase.from('kullanicilar').delete().eq('id',id); getir(); };
+  const wa = (tel)=>{ let c=tel.replace(/\D/g,''); if(c.startsWith('0')) c=c.substring(1); if(!c.startsWith('90')) c='90'+c; window.open(`https://wa.me/${c}`,'_blank'); };
+  return (
+    <div className="flex flex-col h-full bg-slate-50">
+      <div className="bg-white p-4 border-b flex justify-between items-center"><div><h2 className="text-[16px] font-extrabold text-slate-900">Eğitmenler</h2><p className="text-[11px] font-bold text-slate-500">{list.length} eğitmen</p></div><button onClick={()=>setOpen(true)} className="w-9 h-9 bg-[#5b46f5] text-white rounded-full flex items-center justify-center"><Plus className="w-5 h-5" /></button></div>
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">{loading?<div className="text-center py-10 text-xs font-bold">Yükleniyor</div>:list.map(e=>(
+        <div key={e.id} className="bg-white p-2.5 rounded-xl border flex justify-between items-center"><div className="text-left"><div className="text-[13px] font-extrabold text-slate-900">{e.adi} - {e.rol}</div><div className="text-[10px] font-bold text-slate-600">{e.telefon} • {e.email}</div></div><div className="flex gap-1"><button onClick={()=>wa(e.telefon)} className="w-7 h-7 bg-emerald-50 rounded-full flex items-center justify-center"><MessageSquare className="w-3.5 h-3.5 text-emerald-600" /></button><a href={`tel:${e.telefon}`} className="w-7 h-7 bg-indigo-50 rounded-full flex items-center justify-center"><Phone className="w-3.5 h-3.5" /></a><button onClick={()=>sil(e.id,e.adi)} className="w-7 h-7 bg-red-50 rounded-full flex items-center justify-center"><Trash className="w-3.5 h-3.5 text-red-500" /></button></div></div>
+      ))}</div>
+      {open && <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"><div className="bg-white w-full max-w-sm rounded-2xl p-5"><div className="flex justify-between border-b pb-3"><h2 className="text-[15px] font-extrabold text-slate-900">Yeni Eğitmen Ekle</h2><button onClick={()=>setOpen(false)}><X className="w-5 h-5" /></button></div>{hata && <div className="mt-2 p-2 bg-red-50 text-red-600 text-xs font-bold rounded">{hata}</div>}<form onSubmit={ekle} className="mt-3 space-y-3">
+        <input required placeholder="Ad Soyad" value={form.adi} onChange={e=>setForm({...form,adi:e.target.value})} className="w-full px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm" />
+        <input required type="tel" inputMode="numeric" pattern="[0-9]*" placeholder="Telefon 05xx" value={form.telefon} onChange={e=>setForm({...form,telefon:e.target.value})} className="w-full px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm" />
+        <input required type="email" placeholder="E-posta" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} className="w-full px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm" />
+        <input required type="password" placeholder="Şifre en az 6" value={form.sifre} onChange={e=>setForm({...form,sifre:e.target.value})} className="w-full px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm" />
+        <select value={form.rol} onChange={e=>setForm({...form,rol:e.target.value})} className="w-full px-3 py-2.5 border rounded-xl bg-slate-50 font-extrabold text-sm"><option>Eğitmen</option><option>Admin</option></select>
+        <button type="submit" className="w-full py-3 bg-[#5b46f5] text-white rounded-xl font-extrabold">Oluştur ve Giriş Yetkisi Ver</button>
+      </form></div></div>}
+    </div>
+  );
+}
