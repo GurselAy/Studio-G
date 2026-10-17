@@ -1,4 +1,3 @@
-// Studio G + Haftalik + userRole -> DigerView'e prop, Takvim sadece planlandi
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient.js';
 import TakvimView from './TakvimView.jsx';
@@ -8,7 +7,6 @@ import DigerView from './DigerView.jsx';
 import NewAppointmentModal from './NewAppointmentModal.jsx';
 import RandevuDetailModal from './RandevuDetailModal.jsx';
 import { CalendarIcon, Users, Clock, Plus, ChevronLeft, ChevronRight } from './Icons.jsx';
-
 export default function CalendarView(){
   const [aktifSekme,setAktifSekme]=useState('takvim');
   const [secilenTarih,setSecilenTarih]=useState(new Date().toISOString().split('T')[0]);
@@ -17,10 +15,8 @@ export default function CalendarView(){
   const [modalAcik,setModalAcik]=useState(false); const [secilenRandevu,setSecilenRandevu]=useState(null); const [detayAcik,setDetayAcik]=useState(false);
   const [userRole,setUserRole]=useState('Eğitmen'); const [userName,setUserName]=useState('');
   const todayStr = new Date().toISOString().split('T')[0];
-
   useEffect(()=>{ supabase.auth.getUser().then(async({data})=>{ if(data.user){ const {data:prof}=await supabase.from('kullanicilar').select('rol,adi').eq('id',data.user.id).single(); if(prof){ setUserRole(prof.rol); setUserName(prof.adi); } } }); },[]);
   useEffect(()=>{ veriGetir(); },[secilenTarih,secilenEgitmen]);
-
   const veriGetir = async()=>{
     setLoading(true);
     const {data:eg}=await supabase.from('kullanicilar').select('id,adi'); if(eg) setEgitmenler(eg);
@@ -28,7 +24,6 @@ export default function CalendarView(){
     if(secilenEgitmen!=='tumu') q=q.eq('egitmen_id',secilenEgitmen);
     const {data}=await q; if(data) setRandevular(data); setLoading(false);
   };
-
   const tarihArttir=(g)=>{ const d=new Date(secilenTarih); d.setDate(d.getDate()+g); setSecilenTarih(d.toISOString().split('T')[0]); };
   const buguneDon=()=>setSecilenTarih(todayStr);
   const getWeekDays=(s)=>{ const date=new Date(s); const diff=date.getDay()===0?-6:1-date.getDay(); const mon=new Date(date); mon.setDate(date.getDate()+diff); return Array.from({length:7},(_,i)=>{ const d=new Date(mon); d.setDate(mon.getDate()+i); return d; }); };
@@ -36,7 +31,6 @@ export default function CalendarView(){
   const {gunAy,haftagun,tam}=(()=>{ const d=new Date(secilenTarih); return {gunAy:d.toLocaleDateString('tr-TR',{day:'numeric',month:'short'}),haftagun:d.toLocaleDateString('tr-TR',{weekday:'long'}),tam:d.toLocaleDateString('tr-TR')}; })();
   const takvimData = randevular.filter(r=>r.durum==='planlandı');
   const ajandaData = userRole==='Admin' ? randevular : randevular.filter(r=>r.durum!=='tamamlandı');
-
   return (
     <div className="flex flex-col h-screen bg-[#f6f5ff] max-w-md mx-auto shadow-2xl overflow-hidden">
       <div className="bg-white px-4 py-3 flex justify-between items-center border-b"><div className="flex items-center gap-2.5"><div className="w-8 h-8 bg-gradient-to-br from-[#7c3aed] to-[#4f46e5] rounded-xl flex items-center justify-center text-white font-extrabold">G</div><span className="font-extrabold text-[16px]">Studio G</span><span className="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded-full ml-2">{userRole}</span></div><button onClick={()=>setModalAcik(true)} className="bg-[#5b46f5] text-white px-4 py-1.5 rounded-full text-xs font-extrabold">+ Randevu</button></div>
