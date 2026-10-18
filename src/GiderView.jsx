@@ -1,122 +1,87 @@
-import React, { useState } from 'react';
-import { ModalShell, Button, ButtonOutline, NumericInput, fmtTutar, fmtTarih, adSoyad, bugun } from './App';
+import React, { useState, useEffect } from 'react';
+import { supabase } from './supabaseClient.js';
+import { Plus, Trash, X } from './Icons.jsx';
 
-export default function GiderView({ giderler, egitmenler, setActiveScreen, addGider, editGider, deleteGider }) {
+const GENEL_KATEGORILER = ['Kira', 'Elektrik', 'Su', 'Doğalgaz', 'İnternet', 'Temizlik', 'Bakım', 'Sigorta', 'Muhasebe', 'Vergi', 'Genel'];
+
+export default function GiderView() {
+  const [list, setList] = useState([]);
+  const [egitmenler, setEgitmenler] = useState([]);
   const [open, setOpen] = useState(false);
-  const [edit, setEdit] = useState(null);
-  const [secili, setSecili] = useState('genel');
-  const [tutar, setTutar] = useState('');
-  const [aciklama, setAciklama] = useState('');
-  const [tarih, setTarih] = useState(bugun);
+  const [form, setForm] = useState({ kategori: 'Kira', egitmen_id: '', tutar: '', aciklama: '', tarih: new Date().toISOString().slice(0, 10), selectValue: 'GENEL|Kira' });
+
+  useEffect(() => { getir(); }, []);
+  const getir = async () => {
+    const { data } = await supabase.from('isletme_giderleri').select('*, kullanicilar(adi)').order('tarih', { ascending: false });
+    if (data) setList(data);
+    const { data: eg } = await supabase.from('kullanicilar').select('id,adi').order('adi');
+    if (eg) setEgitmenler(eg);
+  };
+
+  const handleSelect = (e) => {
+    const val = e.target.value;
+    const sepIdx = val.indexOf('|');
+    if (sepIdx === -1) return;
+    const prefix = val.substring(0, sepIdx);
+    const rest = val.substring(sepIdx + 1);
+    if (prefix === 'GENEL') {
+      setForm({ ...form, selectValue: val, kategori: rest, egitmen_id: '' });
+    } else if (prefix === 'EGITMEN') {
+      const egt = egitmenler.find((x) => x.id === rest);
+      setForm({ ...form, selectValue: val, kategori: egt ? egt.adi : rest, egitmen_id: rest });
+    }
+  };
+
+  const ekle = async (e) => {
+    e.preventDefault();
+    const { error } = await supabase.from('isletme_giderleri').insert([{ kategori: form.kategori, aciklama: form.aciklama, tutar: parseFloat(form.tutar), tarih: form.tarih, egitmen_id: form.egitmen_id || null }]);
+    if (error) { alert(error.message); return; }
+    setOpen(false);
+    setForm({ kategori: 'Kira', egitmen_id: '', tutar: '', aciklama: '', tarih: new Date().toISOString().slice(0, 10), selectValue: 'GENEL|Kira' });
+    getir();
+  };
+
+  const sil = async (id) => { if (!confirm('Silinsin mi?')) return; await supabase.from('isletme_giderleri').delete().eq('id', id); getir(); };
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200 shrink-0">
-        <ButtonOutline onClick={() => setActiveScreen('diger')} className="px-3 py-1.5 text-xs">← Menü</ButtonOutline>
-        <span className="font-bold text-slate-900">Giderler</span>
-        <Button
-          onClick={() => { setSecili('genel'); setTutar(''); setAciklama(''); setTarih(bugun); setEdit(null); setOpen(true); }}
-          className="px-3 py-1.5 text-xs"
-        >
-          + Gider
-        </Button>
+    <div className="flex flex-col h-full bg-slate-50">
+      <div className="bg-white p-4 border-b flex justify-between items-center">
+        <div><h2 className="text-[16px] font-extrabold">Giderler</h2><p className="text-[11px] font-bold text-slate-500">{list.length} kayıt • {list.reduce((s, x) => s + parseFloat(x.tutar), 0).toLocaleString('tr-TR')} TL</p></div>
+        <button onClick={() => setOpen(true)} className="w-9 h-9 bg-[#5b46f5] text-white rounded-full flex items-center justify-center"><Plus className="w-5 h-5" /></button>
       </div>
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="grid gap-3">
-          {giderler.map((g) => {
-            const etiket = g.tur === 'genel'
-              ? 'Genel'
-              : (() => { const eg = egitmenler.find((e) => e.id === g.egitmenId); return eg ? adSoyad(eg) : 'Eğitmen'; })();
-            return (
-              <div key={g.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="font-bold text-slate-900">{etiket}</div>
-                  <div className="text-xs text-slate-500">{g.tur === 'egitmen' ? 'Eğitmen Gideri' : 'Genel Gider'} · {fmtTarih(g.tarih)}</div>
-                  {g.aciklama && <div className="text-xs text-slate-400 mt-1">{g.aciklama}</div>}
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="font-bold text-slate-900 text-right min-w-[80px]">{fmtTutar(g.tutar)}</div>
-                  <ButtonOutline
-                    onClick={() => {
-                      setSecili(g.tur === 'egitmen' ? (g.egitmenId || 'genel') : 'genel');
-                      setTutar(String(g.tutar));
-                      setAciklama(g.aciklama || '');
-                      setTarih(g.tarih);
-                      setEdit(g);
-                      setOpen(true);
-                    }}
-                    className="px-3 py-1.5 text-xs"
-                  >
-                    Düzenle
-                  </ButtonOutline>
-                  <ButtonOutline
-                    onClick={() => { if (confirm('Gider silinsin mi?')) deleteGider(g.id); }}
-                    className="px-3 py-1.5 text-xs text-red-600 border-red-200"
-                  >
-                    Sil
-                  </ButtonOutline>
-                </div>
-              </div>
-            );
-          })}
-          {giderler.length === 0 && (
-            <div className="text-center py-10 text-slate-400 text-sm">Henüz gider eklenmemiş.</div>
-          )}
-        </div>
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        {list.map((g) => (
+          <div key={g.id} className="bg-white p-3 rounded-xl border flex justify-between items-center">
+            <div className="text-left">
+              <div className="text-[13px] font-extrabold">{g.kullanicilar?.adi || g.kategori}</div>
+              <div className="text-[11px] font-bold text-slate-500">{g.aciklama || '-'} • {new Date(g.tarih).toLocaleDateString('tr-TR')}</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[13px] font-extrabold text-red-600">{parseFloat(g.tutar).toLocaleString('tr-TR')} TL</span>
+              <button onClick={() => sil(g.id)}><Trash className="w-4 h-4 text-slate-300" /></button>
+            </div>
+          </div>
+        ))}
       </div>
       {open && (
-        <ModalShell
-          title={edit ? 'Gider Düzenle' : 'Yeni Gider'}
-          onClose={() => setOpen(false)}
-          footer={
-            <>
-              <ButtonOutline onClick={() => setOpen(false)}>İptal</ButtonOutline>
-              <Button
-                onClick={() => {
-                  if (!tutar) return;
-                  const isEg = secili !== 'genel';
-                  const data = {
-                    tur: isEg ? 'egitmen' : 'genel',
-                    egitmenId: isEg ? secili : undefined,
-                    tutar: parseFloat(tutar) || 0,
-                    tarih,
-                    aciklama: aciklama || undefined,
-                  };
-                  if (edit) editGider(edit.id, data); else addGider(data);
-                  setOpen(false);
-                }}
-              >
-                Kaydet
-              </Button>
-            </>
-          }
-        >
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Tür</label>
-            <select
-              className="w-full rounded-lg px-4 py-2 border border-slate-300 focus:ring-2 focus:ring-violet-500 outline-none"
-              value={secili}
-              onChange={(e) => setSecili(e.target.value)}
-            >
-              <option value="genel">Genel</option>
-              {egitmenler.map((e) => (
-                <option key={e.id} value={e.id}>{adSoyad(e)}</option>
-              ))}
-            </select>
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-2xl p-5">
+            <div className="flex justify-between border-b pb-3"><h2 className="text-[15px] font-extrabold">Gider Ekle</h2><button onClick={() => setOpen(false)}><X className="w-5 h-5" /></button></div>
+            <form onSubmit={ekle} className="mt-3 space-y-3 text-sm">
+              <div>
+                <label className="text-xs font-extrabold">Kategori</label>
+                <select value={form.selectValue} onChange={handleSelect} className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold">
+                  <optgroup label="Genel Giderler">{GENEL_KATEGORILER.map((k) => <option key={k} value={`GENEL|${k}`}>{k}</option>)}</optgroup>
+                  <optgroup label="Eğitmenler">{egitmenler.map((eg) => <option key={eg.id} value={`EGITMEN|${eg.id}`}>{eg.adi}</option>)}</optgroup>
+                </select>
+              </div>
+              <div><label className="text-xs font-extrabold">Tutar (TL)</label><input required type="tel" inputMode="decimal" placeholder="1500" value={form.tutar} onChange={(e) => setForm({ ...form, tutar: e.target.value.replace(',', '.') })} className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-extrabold" /></div>
+              <div><label className="text-xs font-extrabold">Açıklama</label><input placeholder="Maaş, prim detayı..." value={form.aciklama} onChange={(e) => setForm({ ...form, aciklama: e.target.value })} className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold" /></div>
+              <div><label className="text-xs font-extrabold">Tarih</label><input type="date" value={form.tarih} onChange={(e) => setForm({ ...form, tarih: e.target.value })} className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold max-w-full" /></div>
+              <button type="submit" className="w-full py-3 bg-[#5b46f5] text-white rounded-xl font-extrabold">Kaydet</button>
+            </form>
           </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Tutar</label>
-            <NumericInput value={tutar} onChange={setTutar} placeholder="0" className="w-full rounded-lg px-4 py-2 border border-slate-300 focus:ring-2 focus:ring-violet-500 outline-none" />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Açıklama</label>
-            <input className="w-full rounded-lg px-4 py-2 border border-slate-300 focus:ring-2 focus:ring-violet-500 outline-none" value={aciklama} onChange={(e) => setAciklama(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Tarih</label>
-            <input type="date" className="w-full rounded-lg px-4 py-2 border border-slate-300 focus:ring-2 focus:ring-violet-500 outline-none" value={tarih} onChange={(e) => setTarih(e.target.value)} />
-          </div>
-        </ModalShell>
+        </div>
       )}
     </div>
   );
