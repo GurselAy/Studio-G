@@ -1,83 +1,59 @@
-// RaporView.jsx - Ciro ve Alacak Raporu
-// - Bugün / Bu Ay sadece odeme_hareketleri tablosundan hesaplanır
-// - Toplam Ciro = tüm ödeme hareketleri toplamı
-// - Toplam Alacak = paketlerin (ucret - odenen) toplamı
-// - Aktif paket = kalan_seans > 0 olanlar
-// - Borçlu paket = alacağı > 0 olanlar - bu sayı alacak kutusunda gösterilir
-import React, { useState, useEffect } from 'react';
-import { supabase } from './supabaseClient';
+import React from 'react';
+import { ButtonOutline, fmtTutar, adSoyad } from './App';
 
-export default function RaporView() {
-  const [stats, setStats] = useState({ bugun:0, buAy:0, toplamCiro:0, toplamAlacak:0, aktifPaket:0, borcluPaket:0 });
-  const [alacaklilar, setAlacaklilar] = useState([]);
-  const [sonOdemeler, setSonOdemeler] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(()=>{ getir(); },[]);
-
-  const getir = async () => {
-    setLoading(true);
-    const { data: paketler } = await supabase.from('musteri_paketleri').select('*, musteriler(adi), hizmetler(adi)');
-    const { data: odemeler } = await supabase.from('odeme_hareketleri').select('*, musteriler(adi)').order('tarih',{ascending:false}).limit(30);
-
-    if (paketler) {
-      const bugunStart = new Date(); bugunStart.setHours(0,0,0,0);
-      const ayStart = new Date(); ayStart.setDate(1); ayStart.setHours(0,0,0,0);
-
-      let toplamAlacak = 0, aktif = 0, borclu = 0;
-      paketler.forEach(p=>{
-        const kalan = Math.max(0, parseFloat(p.ucret||0) - parseFloat(p.odenen_tutar||0));
-        toplamAlacak += kalan;
-        if (p.kalan_seans > 0 && p.durum) aktif++;
-        if (kalan > 0) borclu++;
-      });
-
-      let bugun = 0, buAy = 0, toplamCiro = 0;
-      if (odemeler) {
-        odemeler.forEach(o=>{
-          const t = new Date(o.tarih);
-          toplamCiro += parseFloat(o.tutar||0);
-          if (t >= bugunStart) bugun += parseFloat(o.tutar||0);
-          if (t >= ayStart) buAy += parseFloat(o.tutar||0);
-        });
-        // Toplam ciro için tüm hareketleri çekmek gerekir, limit 30 yetmez, paketlerden hesapla
-        const fullCiro = paketler.reduce((s,p)=> s + parseFloat(p.odenen_tutar||0), 0);
-        toplamCiro = fullCiro;
-      }
-
-      setStats({ bugun, buAy, toplamCiro, toplamAlacak, aktifPaket: aktif, borcluPaket: borclu });
-      setAlacaklilar(paketler.filter(p=> (p.ucret - p.odenen_tutar) > 0).sort((a,b)=>(b.ucret-b.odenen_tutar)-(a.ucret-a.odenen_tutar)).slice(0,15));
-      setSonOdemeler(odemeler||[]);
-    }
-    setLoading(false);
-  };
-
-  if (loading) return <div className="p-10 text-center text-xs font-bold text-slate-400">Rapor yükleniyor...</div>;
-
+function Mini({ label, value, color }) {
   return (
-    <div className="flex flex-col h-full bg-slate-50 overflow-y-auto p-3 space-y-3">
-      <div className="grid grid-cols-2 gap-2">
-        <div className="bg-white p-3 rounded-xl border shadow-sm"><div className="text-[10px] font-extrabold text-slate-500">BUGÜN TAHSİLAT</div><div className="text-[18px] font-extrabold text-slate-900 mt-1">{stats.bugun.toLocaleString('tr-TR')} TL</div></div>
-        <div className="bg-white p-3 rounded-xl border shadow-sm"><div className="text-[10px] font-extrabold text-slate-500">BU AY CİRO</div><div className="text-[18px] font-extrabold text-[#5b46f5] mt-1">{stats.buAy.toLocaleString('tr-TR')} TL</div></div>
-        <div className="bg-white p-3 rounded-xl border shadow-sm"><div className="text-[10px] font-extrabold text-slate-500">TOPLAM CİRO</div><div className="text-[16px] font-extrabold text-slate-900 mt-1">{stats.toplamCiro.toLocaleString('tr-TR')} TL</div><div className="text-[10px] font-bold text-slate-500">{stats.aktifPaket} aktif paket</div></div>
-        <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 shadow-sm"><div className="text-[10px] font-extrabold text-amber-700">TOPLAM ALACAK</div><div className="text-[16px] font-extrabold text-amber-700 mt-1">{stats.toplamAlacak.toLocaleString('tr-TR')} TL</div><div className="text-[10px] font-extrabold text-amber-600">{stats.borcluPaket} pakette alacak var</div></div>
-      </div>
-
-      <div className="bg-white rounded-xl border p-3">
-        <h3 className="text-[13px] font-extrabold text-slate-900 mb-2">Son Tahsilatlar</h3>
-        {sonOdemeler.length===0 ? <div className="text-[11px] font-bold text-slate-400">Henüz ödeme yok</div> :
-          sonOdemeler.map(o=><div key={o.id} className="flex justify-between py-2 border-b last:border-0 text-[11px]"><div><span className="font-extrabold text-slate-900">{o.musteriler?.adi}</span><span className="font-bold text-slate-500 ml-2">{new Date(o.tarih).toLocaleDateString('tr-TR')} {new Date(o.tarih).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'})}</span></div><div className="font-extrabold text-emerald-600">+{parseFloat(o.tutar).toLocaleString('tr-TR')} TL</div></div>)
-        }
-      </div>
-
-      <div className="bg-white rounded-xl border p-3">
-        <h3 className="text-[13px] font-extrabold text-slate-900 mb-2">Alacak Listesi</h3>
-        {alacaklilar.length===0 ? <div className="text-[11px] font-bold text-slate-400">Alacak yok</div> :
-          alacaklilar.map(p=><div key={p.id} className="flex justify-between py-2 border-b last:border-0 text-[11px]"><div><div className="font-extrabold text-slate-900">{p.musteriler?.adi}</div><div className="font-bold text-slate-500">{p.hizmetler?.adi} • {p.kalan_seans}/{p.toplam_seans}</div></div><div className="text-right"><div className="font-extrabold text-amber-600">{(p.ucret - p.odenen_tutar).toLocaleString('tr-TR')} TL</div><div className="text-[10px] font-bold text-slate-400">{p.odeme_durumu}</div></div></div>)
-        }
-      </div>
+    <div className="p-2 rounded border border-slate-200 bg-slate-50">
+      <div className="text-slate-500 text-[10px] uppercase">{label}</div>
+      <div className={'font-bold ' + (color || 'text-slate-900')}>{value}</div>
     </div>
   );
 }
 
-// <div className="text-[10px] font-bold text-slate-400">odeme_hareketleri</div>
+export default function RaporView({ egitmenler, randevular, kazanclar, setActiveScreen }) {
+  return (
+    <div className="h-full flex flex-col">
+      <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200 shrink-0">
+        <ButtonOutline onClick={() => setActiveScreen('diger')} className="px-3 py-1.5 text-xs">← Menü</ButtonOutline>
+        <span className="font-bold text-slate-900">Eğitmen Raporları</span>
+        <span />
+      </div>
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="grid gap-4">
+          {egitmenler.map((e) => {
+            const egR = randevular.filter((r) => r.egitmenId === e.id && r.durum !== 'iptal');
+            const sayi = egR.length;
+            const toplam = egR.reduce((s, r) => s + r.toplamTutar, 0);
+            const odenen = egR.reduce((s, r) => s + r.odenenTutar, 0);
+            const bKazanc = kazanclar.filter((k) => k.egitmenId === e.id && k.durum === 'beklemede').reduce((s, k) => s + k.tutar, 0);
+            const oKazanc = kazanclar.filter((k) => k.egitmenId === e.id && k.durum === 'odendi').reduce((s, k) => s + k.tutar, 0);
+            return (
+              <div key={e.id} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="font-bold text-slate-900">{adSoyad(e)}</div>
+                  <div className="text-xs text-violet-600 font-bold">{Object.keys(e.hizmetUcretleri || {}).length} hizmet</div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  <Mini label="Seans" value={String(sayi)} />
+                  <Mini label="Toplam" value={fmtTutar(toplam)} />
+                  <Mini label="Ödenen" value={fmtTutar(odenen)} color="text-emerald-600" />
+                  <Mini label="Kazanç" value={fmtTutar(oKazanc)} color="text-emerald-600" />
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2 rounded border border-slate-200 bg-slate-50">
+                    <div className="text-slate-500 text-[10px] uppercase">Bekleyen Kazanç</div>
+                    <div className="font-bold text-rose-600">{fmtTutar(bKazanc)}</div>
+                  </div>
+                  <div className="p-2 rounded border border-slate-200 bg-slate-50">
+                    <div className="text-slate-500 text-[10px] uppercase">Net Kazanç</div>
+                    <div className="font-bold text-slate-900">{fmtTutar(oKazanc)}</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}

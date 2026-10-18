@@ -1,56 +1,144 @@
-// Eğitmen eklerken auth.users'a da ekler, artık giriş yapabilir
-// Rakam klavyesi: telefon numeric
-import React, { useState, useEffect } from 'react';
-import { supabase, supabaseUrl, supabaseAnonKey } from './supabaseClient';
-import { createClient } from '@supabase/supabase-js';
-import { Plus, Trash, X, Phone, MessageSquare } from './Icons';
-const secondary = createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+import React, { useState } from 'react';
+import { ModalShell, Button, ButtonOutline, NumericInput, fmtTutar, adSoyad } from './App';
 
-export default function TrainersView() {
-  const [list, setList] = useState([]); const [loading, setLoading] = useState(true); const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ adi:'', telefon:'', email:'', sifre:'', rol:'Eğitmen' }); const [hata,setHata]=useState('');
-  useEffect(()=>{ getir(); },[]);
-  const getir = async()=>{ setLoading(true); const {data}=await supabase.from('kullanicilar').select('*').order('adi'); if(data) setList(data); setLoading(false); };
-  const ekle = async(e)=>{
-    e.preventDefault(); setHata('');
-    if(form.sifre.length<6){ setHata('Şifre en az 6 karakter'); return; }
-    try{
-      const { data, error } = await secondary.auth.signUp({ email: form.email, password: form.sifre, options:{ data:{ adi: form.adi, telefon: form.telefon, rol: form.rol } } });
-      if(error){
-        if(error.message.includes('already registered')){
-          // Zaten auth'da var, sadece kullanicilar'a linkle
-          const { data: signIn } = await secondary.auth.signInWithPassword({ email: form.email, password: form.sifre });
-          if(signIn?.user){
-            await supabase.from('kullanicilar').upsert([{ id: signIn.user.id, adi: form.adi, telefon: form.telefon, email: form.email, rol: form.rol, sifre_hash:'supabase_auth' }], { onConflict:'email' });
-            setOpen(false); getir(); alert('Email zaten vardı, şifre doğru, eşleştirildi');
-            await secondary.auth.signOut(); return;
-          }
-          throw new Error('Bu email zaten kayıtlı. Supabase > Authentication > Users > bu kullanıcıyı sil veya şifresini sıfırla, sonra tekrar dene.');
-        }
-        throw error;
-      }
-      if(data.user){ await supabase.from('kullanicilar').upsert([{ id: data.user.id, adi: form.adi, telefon: form.telefon, email: form.email, rol: form.rol, sifre_hash:'supabase_auth' }], { onConflict:'email' }); }
-      setOpen(false); setForm({adi:'',telefon:'',email:'',sifre:'',rol:'Eğitmen'}); setTimeout(getir,800);
-      await secondary.auth.signOut();
-      alert('Eğitmen oluşturuldu, giriş yapabilir');
-    }catch(err){ setHata(err.message); }
-  };
-  const sil = async(id,adi)=>{ if(!confirm(`${adi} silinsin mi?`)) return; const {count}=await supabase.from('randevular').select('*',{count:'exact',head:true}).eq('egitmen_id',id); if(count>0){ alert('Randevuları var'); return; } await supabase.from('kullanicilar').delete().eq('id',id); getir(); };
-  const wa = (tel)=>{ let c=tel.replace(/\D/g,''); if(c.startsWith('0')) c=c.substring(1); if(!c.startsWith('90')) c='90'+c; window.open(`https://wa.me/${c}`,'_blank'); };
+export default function TrainersView({ egitmenler, hizmetler, setActiveScreen, addEgitmen, editEgitmen, deleteEgitmen }) {
+  const [open, setOpen] = useState(false);
+  const [edit, setEdit] = useState(null);
+
   return (
-    <div className="flex flex-col h-full bg-slate-50">
-      <div className="bg-white p-4 border-b flex justify-between items-center"><div><h2 className="text-[16px] font-extrabold text-slate-900">Eğitmenler</h2><p className="text-[11px] font-bold text-slate-500">{list.length} eğitmen</p></div><button onClick={()=>setOpen(true)} className="w-9 h-9 bg-[#5b46f5] text-white rounded-full flex items-center justify-center"><Plus className="w-5 h-5" /></button></div>
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">{loading?<div className="text-center py-10 text-xs font-bold">Yükleniyor</div>:list.map(e=>(
-        <div key={e.id} className="bg-white p-2.5 rounded-xl border flex justify-between items-center"><div className="text-left"><div className="text-[13px] font-extrabold text-slate-900">{e.adi} - {e.rol}</div><div className="text-[10px] font-bold text-slate-600">{e.telefon} • {e.email}</div></div><div className="flex gap-1"><button onClick={()=>wa(e.telefon)} className="w-7 h-7 bg-emerald-50 rounded-full flex items-center justify-center"><MessageSquare className="w-3.5 h-3.5 text-emerald-600" /></button><a href={`tel:${e.telefon}`} className="w-7 h-7 bg-indigo-50 rounded-full flex items-center justify-center"><Phone className="w-3.5 h-3.5" /></a><button onClick={()=>sil(e.id,e.adi)} className="w-7 h-7 bg-red-50 rounded-full flex items-center justify-center"><Trash className="w-3.5 h-3.5 text-red-500" /></button></div></div>
-      ))}</div>
-      {open && <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"><div className="bg-white w-full max-w-sm rounded-2xl p-5"><div className="flex justify-between border-b pb-3"><h2 className="text-[15px] font-extrabold text-slate-900">Yeni Eğitmen Ekle</h2><button onClick={()=>setOpen(false)}><X className="w-5 h-5" /></button></div>{hata && <div className="mt-2 p-2 bg-red-50 text-red-600 text-xs font-bold rounded">{hata}</div>}<form onSubmit={ekle} className="mt-3 space-y-3">
-        <input required placeholder="Ad Soyad" value={form.adi} onChange={e=>setForm({...form,adi:e.target.value})} className="w-full px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm" />
-        <input required type="tel" inputMode="numeric" pattern="[0-9]*" placeholder="Telefon 05xx" value={form.telefon} onChange={e=>setForm({...form,telefon:e.target.value})} className="w-full px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm" />
-        <input required type="email" placeholder="E-posta" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} className="w-full px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm" />
-        <input required type="password" placeholder="Şifre en az 6" value={form.sifre} onChange={e=>setForm({...form,sifre:e.target.value})} className="w-full px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm" />
-        <select value={form.rol} onChange={e=>setForm({...form,rol:e.target.value})} className="w-full px-3 py-2.5 border rounded-xl bg-slate-50 font-extrabold text-sm"><option>Eğitmen</option><option>Admin</option></select>
-        <button type="submit" className="w-full py-3 bg-[#5b46f5] text-white rounded-xl font-extrabold">Oluştur ve Giriş Yetkisi Ver</button>
-      </form></div></div>}
+    <div className="h-full flex flex-col">
+      <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200 shrink-0">
+        <ButtonOutline onClick={() => setActiveScreen('diger')} className="px-3 py-1.5 text-xs">← Menü</ButtonOutline>
+        <span className="font-bold text-slate-900">Eğitmenler</span>
+        <Button onClick={() => { setEdit(null); setOpen(true); }} className="px-3 py-1.5 text-xs">
+          + Eğitmen
+        </Button>
+      </div>
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="grid gap-4">
+          {egitmenler.map((e) => (
+            <div key={e.id} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <div className="font-bold text-slate-900">{adSoyad(e)}</div>
+                  <div className="text-xs text-slate-500">{e.email || '-'} · {e.telefon || '-'}</div>
+                </div>
+              </div>
+              <div className="text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wider">Seans Ücretleri</div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs mb-3">
+                {hizmetler.map((h) => (
+                  <div key={h.id} className="p-2 rounded border border-slate-200 bg-slate-50">
+                    <div className="text-[10px] text-slate-500 truncate">{h.ad}</div>
+                    <div className="font-semibold text-slate-900">{fmtTutar(e.hizmetUcretleri[h.id] || 0)}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <ButtonOutline
+                  onClick={() => { setEdit(e); setOpen(true); }}
+                  className="flex-1 text-xs"
+                >
+                  Düzenle (ücretler)
+                </ButtonOutline>
+                <ButtonOutline
+                  onClick={() => { if (confirm(adSoyad(e) + ' silinsin mi?')) deleteEgitmen(e.id); }}
+                  className="px-3 py-1.5 text-xs text-red-600 border-red-200"
+                >
+                  Sil
+                </ButtonOutline>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      {open && (
+        <EgitmenFormModal
+          egitmen={edit}
+          hizmetler={hizmetler}
+          onClose={() => setOpen(false)}
+          onSave={(e) => {
+            if (edit) editEgitmen(edit.id, e); else addEgitmen(e);
+            setOpen(false);
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function EgitmenFormModal({ egitmen, hizmetler, onClose, onSave }) {
+  const [ad, setAd] = useState(egitmen?.ad || '');
+  const [soyad, setSoyad] = useState(egitmen?.soyad || '');
+  const [telefon, setTelefon] = useState(egitmen?.telefon || '');
+  const [email, setEmail] = useState(egitmen?.email || '');
+  const [sifre, setSifre] = useState('');
+  const [ucretler, setUcretler] = useState(() => {
+    const obj = {};
+    hizmetler.forEach((h) => {
+      obj[h.id] = String(egitmen?.hizmetUcretleri?.[h.id] ?? h.fiyat);
+    });
+    return obj;
+  });
+
+  return (
+    <ModalShell
+      title={egitmen ? 'Eğitmen Düzenle' : 'Yeni Eğitmen'}
+      onClose={onClose}
+      footer={
+        <>
+          <ButtonOutline onClick={onClose}>İptal</ButtonOutline>
+          <Button
+            onClick={() => {
+              const num = {};
+              hizmetler.forEach((h) => { num[h.id] = parseFloat(ucretler[h.id]) || 0; });
+              onSave({ ad, soyad, telefon, email, hizmetUcretleri: num });
+            }}
+          >
+            {egitmen ? 'Güncelle' : 'Kaydet'}
+          </Button>
+        </>
+      }
+    >
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 mb-1">Ad</label>
+          <input className="w-full rounded-lg px-4 py-2 border border-slate-300 focus:ring-2 focus:ring-violet-500 outline-none" value={ad} onChange={(e) => setAd(e.target.value)} />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 mb-1">Soyad</label>
+          <input className="w-full rounded-lg px-4 py-2 border border-slate-300 focus:ring-2 focus:ring-violet-500 outline-none" value={soyad} onChange={(e) => setSoyad(e.target.value)} />
+        </div>
+      </div>
+      <div>
+        <label className="block text-xs font-semibold text-slate-700 mb-1">E-posta (giriş için)</label>
+        <input type="email" className="w-full rounded-lg px-4 py-2 border border-slate-300 focus:ring-2 focus:ring-violet-500 outline-none" value={email} onChange={(e) => setEmail(e.target.value)} />
+      </div>
+      <div>
+        <label className="block text-xs font-semibold text-slate-700 mb-1">Telefon</label>
+        <NumericInput value={telefon} onChange={setTelefon} placeholder="0530 000 00 00" className="w-full rounded-lg px-4 py-2 border border-slate-300 focus:ring-2 focus:ring-violet-500 outline-none" />
+      </div>
+      {!egitmen && (
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 mb-1">Şifre (giriş için)</label>
+          <input type="password" className="w-full rounded-lg px-4 py-2 border border-slate-300 focus:ring-2 focus:ring-violet-500 outline-none" value={sifre} onChange={(e) => setSifre(e.target.value)} placeholder="••••••" />
+        </div>
+      )}
+      <div className="border border-slate-200 rounded-xl p-3">
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Hizmet Bazlı Seans Ücretleri</div>
+        <div className="space-y-3">
+          {hizmetler.map((h) => (
+            <div key={h.id} className="flex items-center justify-between text-sm">
+              <span className="text-slate-700">{h.ad}</span>
+              <NumericInput
+                value={ucretler[h.id] || ''}
+                onChange={(v) => setUcretler((p) => ({ ...p, [h.id]: v }))}
+                placeholder="0"
+                className="w-28 rounded-lg px-3 py-1.5 border border-slate-300 focus:ring-2 focus:ring-violet-500 outline-none text-right"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    </ModalShell>
   );
 }

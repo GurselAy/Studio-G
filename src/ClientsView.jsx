@@ -1,18 +1,216 @@
-// Musteri silme sadece Admin, rakam klavyesi numeric
-import React, { useState, useEffect } from 'react';
-import { supabase } from './supabaseClient.js';
-import OdemeModal from './OdemeModal.jsx';
-import { Plus, Phone, MessageSquare, Search, X, Trash, Package } from './Icons.jsx';
-export default function ClientsView({ userRole }){
-  const isAdmin = userRole==='Admin';
-  const [musteriler,setMusteriler]=useState([]); const [arama,setArama]=useState(''); const [filter,setFilter]=useState('tumu'); const [loading,setLoading]=useState(true);
-  const [musteriModal,setMusteriModal]=useState(false); const [odemePaket,setOdemePaket]=useState(null); const [odemeMusteri,setOdemeMusteri]=useState(null);
-  const [yeniAd,setYeniAd]=useState(''); const [yeniTel,setYeniTel]=useState('');
-  useEffect(()=>{ getir(); },[]);
-  const getir = async()=>{ setLoading(true); const {data}=await supabase.from('musteriler').select(`id,adi,telefon,musteri_paketleri(id,toplam_seans,kalan_seans,ucret,odenen_tutar,odeme_durumu,durum,hizmetler(adi))`).order('adi'); if(data) setMusteriler(data); setLoading(false); };
-  const ekle = async(e)=>{ e.preventDefault(); await supabase.from('musteriler').insert([{adi:yeniAd,telefon:yeniTel}]); setYeniAd(''); setYeniTel(''); setMusteriModal(false); getir(); };
-  const sil = async(id,ad)=>{ if(!isAdmin){ alert('Sadece yönetici silebilir'); return; } if(!confirm(`${ad} silinsin mi?`)) return; const {count}=await supabase.from('randevular').select('*',{count:'exact',head:true}).eq('musteri_id',id).eq('durum','tamamlandı'); await supabase.from('randevular').delete().eq('musteri_id',id); if(count===0){ await supabase.from('odeme_hareketleri').delete().eq('musteri_id',id); await supabase.from('musteri_paketleri').delete().eq('musteri_id',id); }else{ await supabase.from('odeme_hareketleri').update({paket_id:null,musteri_id:null}).eq('musteri_id',id); await supabase.from('egitmen_kazanc_hareketleri').update({musteri_id:null}).eq('musteri_id',id); await supabase.from('musteri_paketleri').delete().eq('musteri_id',id); } await supabase.from('musteriler').delete().eq('id',id); getir(); };
-  const wa=(tel)=>{ let c=tel.replace(/\D/g,''); if(c.startsWith('0')) c=c.substring(1); if(!c.startsWith('90')) c='90'+c; window.open(`https://wa.me/${c}`,'_blank'); };
-  let filtreli=musteriler.filter(m=>m.adi.toLowerCase().includes(arama.toLowerCase())||m.telefon.includes(arama)); if(filter==='borclu') filtreli=filtreli.filter(m=>m.musteri_paketleri?.some(p=>(p.ucret-p.odenen_tutar)>0));
-  return (<div className="flex flex-col h-full bg-slate-50"><div className="bg-white p-4 border-b"><div className="flex justify-between items-center mb-3"><div><h1 className="text-[18px] font-extrabold text-slate-900">Müşteriler</h1><p className="text-[11px] font-bold text-slate-500">{filtreli.length} üye</p></div><button onClick={()=>setMusteriModal(true)} className="w-9 h-9 bg-[#5b46f5] text-white rounded-full flex items-center justify-center"><Plus className="w-5 h-5" /></button></div><div className="relative mb-2"><Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" /><input value={arama} onChange={e=>setArama(e.target.value)} placeholder="İsim veya telefon ara..." className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border rounded-xl text-xs font-bold" /></div><div className="flex gap-1.5"><button onClick={()=>setFilter('tumu')} className={`px-3 py-1 rounded-full text-[11px] font-extrabold ${filter==='tumu'?'bg-slate-900 text-white':'bg-slate-100'}`}>Tümü</button><button onClick={()=>setFilter('borclu')} className={`px-3 py-1 rounded-full text-[11px] font-extrabold ${filter==='borclu'?'bg-amber-600 text-white':'bg-amber-50 text-amber-700'}`}>Borçlu</button></div></div><div className="flex-1 overflow-y-auto p-3 space-y-2">{loading?<div className="text-center py-10 text-xs font-bold">Yükleniyor</div>:filtreli.map(m=>{ const aktif=m.musteri_paketleri?.find(p=>p.durum&&p.kalan_seans>0); return (<div key={m.id} className="bg-white p-2.5 rounded-xl border flex justify-between items-center"><div className="text-left"><div className="text-[13px] font-extrabold">{m.adi}</div><div className="text-[10px] font-bold text-slate-600">{m.telefon}</div>{aktif&&<div className="text-[10px] font-bold mt-1"><span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full">{aktif.kalan_seans}/{aktif.toplam_seans} {aktif.hizmetler?.adi}</span> {aktif.ucret-aktif.odenen_tutar>0&&<span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full ml-1">{aktif.ucret-aktif.odenen_tutar} TL borç</span>}</div>}</div><div className="flex gap-1"><button onClick={()=>wa(m.telefon)} className="w-7 h-7 bg-emerald-50 rounded-full flex items-center justify-center"><MessageSquare className="w-3.5 h-3.5 text-emerald-600" /></button><a href={`tel:${m.telefon}`} className="w-7 h-7 bg-indigo-50 rounded-full flex items-center justify-center"><Phone className="w-3.5 h-3.5" /></a>{isAdmin&&<button onClick={()=>sil(m.id,m.adi)} className="w-7 h-7 bg-red-50 rounded-full flex items-center justify-center"><Trash className="w-3.5 h-3.5 text-red-500" /></button>}</div></div>); })}</div>{musteriModal&&<div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"><div className="bg-white w-full max-w-sm rounded-2xl p-5"><div className="flex justify-between border-b pb-3"><h2 className="text-[15px] font-extrabold">Yeni Müşteri Ekle</h2><button onClick={()=>setMusteriModal(false)}><X className="w-5 h-5" /></button></div><form onSubmit={ekle} className="mt-3 space-y-3"><input required placeholder="Ad Soyad" value={yeniAd} onChange={e=>setYeniAd(e.target.value)} className="w-full px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm" /><input required type="tel" inputMode="numeric" pattern="[0-9]*" placeholder="Telefon 05xx" value={yeniTel} onChange={e=>setYeniTel(e.target.value)} className="w-full px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm" /><button type="submit" className="w-full py-3 bg-[#5b46f5] text-white rounded-xl font-extrabold">Kaydet</button></form></div></div>}<OdemeModal isOpen={Boolean(odemePaket)} onClose={()=>setOdemePaket(null)} paket={odemePaket} musteri={odemeMusteri} onSuccess={getir} /></div>);
+import React, { useState } from 'react';
+import { ModalShell, Button, ButtonOutline, NumericInput, fmtTutar, adSoyad, musteriBorc } from './App';
+import OdemeModal from './OdemeModal';
+
+export default function ClientsView(props) {
+  const { musteriler, randevular, hizmetler, egitmenler, setActiveScreen, addMusteri, editMusteri, deleteMusteri, tahsilEt } = props;
+
+  const [q, setQ] = useState('');
+  const [addOpen, setAddOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editM, setEditM] = useState(null);
+  const [payOpen, setPayOpen] = useState(false);
+  const [payRandevu, setPayRandevu] = useState(null);
+
+  const [yAd, setYAd] = useState('');
+  const [ySoyad, setYSoyad] = useState('');
+  const [yTel, setYTel] = useState('');
+  const [yEposta, setYEposta] = useState('');
+
+  const [eAd, setEAd] = useState('');
+  const [eSoyad, setESoyad] = useState('');
+  const [eTel, setETel] = useState('');
+  const [eEposta, setEEposta] = useState('');
+
+  const filtered = musteriler.filter((m) =>
+    [m.ad, m.soyad, m.telefon, m.email].join(' ').toLowerCase().includes(q.toLowerCase()),
+  );
+
+  return (
+    <div className="h-full flex flex-col">
+      <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200 shrink-0">
+        <div className="flex items-center gap-3">
+          <ButtonOutline onClick={() => setActiveScreen('diger')} className="px-3 py-1.5 text-xs">← Menü</ButtonOutline>
+          <span className="font-bold text-slate-900">Müşteriler</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            placeholder="Ara..."
+            className="rounded-lg px-3 py-2 border border-slate-300 text-sm focus:ring-2 focus:ring-violet-500 outline-none w-44"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+          <Button
+            onClick={() => { setYAd(''); setYSoyad(''); setYTel(''); setYEposta(''); setAddOpen(true); }}
+            className="px-3 py-1.5 text-xs"
+          >
+            + Müşteri
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="grid gap-3">
+          {filtered.map((m) => {
+            const borc = musteriBorc(m.id, randevular);
+            const randevuSayisi = randevular.filter((r) => r.musteriId === m.id).length;
+            return (
+              <div key={m.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900 truncate">{adSoyad(m)}</span>
+                    {borc > 0 && (
+                      <span className="text-[10px] font-bold rounded-full bg-rose-100 text-rose-600 px-2 py-0.5">Borç var</span>
+                    )}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">{m.telefon || '-'} · {m.email || '-'}</div>
+                  <div className="text-sm font-medium text-slate-700 mt-2">
+                    Toplam Borç:{' '}
+                    <span className={borc > 0 ? 'text-rose-600 font-bold' : 'text-emerald-600 font-bold'}>
+                      {fmtTutar(Math.max(0, borc))}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-slate-400 mt-1">
+                    Randevu: {randevuSayisi} · {hizmetler.length} hizmet · {egitmenler.length} eğitmen
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {borc > 0 ? (
+                    <Button
+                      onClick={() => {
+                        const r = randevular.find(
+                          (x) => x.musteriId === m.id && x.durum !== 'iptal' && x.odenenTutar < x.toplamTutar,
+                        );
+                        if (r) { setPayRandevu(r); setPayOpen(true); }
+                      }}
+                      className="px-3 py-1.5 text-xs bg-rose-600"
+                    >
+                      Ödeme Tahsil Et
+                    </Button>
+                  ) : (
+                    <ButtonOutline
+                      onClick={() => {
+                        const r = randevular.find((x) => x.musteriId === m.id && x.durum !== 'iptal');
+                        if (r) { setPayRandevu(r); setPayOpen(true); }
+                      }}
+                      className="px-3 py-1.5 text-xs"
+                    >
+                      Ödeme
+                    </ButtonOutline>
+                  )}
+                  <ButtonOutline
+                    onClick={() => {
+                      setEditM(m);
+                      setEAd(m.ad); setESoyad(m.soyad); setETel(m.telefon || ''); setEEposta(m.email || '');
+                      setEditOpen(true);
+                    }}
+                    className="px-3 py-1.5 text-xs"
+                  >
+                    Düzenle
+                  </ButtonOutline>
+                  <ButtonOutline
+                    onClick={() => { if (confirm(adSoyad(m) + ' silinsin mi?')) deleteMusteri(m.id); }}
+                    className="px-3 py-1.5 text-xs text-red-600 border-red-200"
+                  >
+                    Sil
+                  </ButtonOutline>
+                </div>
+              </div>
+            );
+          })}
+          {filtered.length === 0 && (
+            <div className="text-center py-10 text-slate-400 text-sm">Müşteri bulunamadı.</div>
+          )}
+        </div>
+      </div>
+
+      {addOpen && (
+        <ModalShell
+          title="Yeni Müşteri"
+          onClose={() => setAddOpen(false)}
+          footer={
+            <>
+              <ButtonOutline onClick={() => setAddOpen(false)}>İptal</ButtonOutline>
+              <Button
+                onClick={() => {
+                  if (!yAd) return;
+                  addMusteri({ ad: yAd, soyad: ySoyad, telefon: yTel, email: yEposta });
+                  setAddOpen(false);
+                }}
+              >
+                Kaydet
+              </Button>
+            </>
+          }
+        >
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Ad</label>
+              <input className="w-full rounded-lg px-4 py-2 border border-slate-300 focus:ring-2 focus:ring-violet-500 outline-none" value={yAd} onChange={(e) => setYAd(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Soyad</label>
+              <input className="w-full rounded-lg px-4 py-2 border border-slate-300 focus:ring-2 focus:ring-violet-500 outline-none" value={ySoyad} onChange={(e) => setYSoyad(e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Telefon</label>
+            <NumericInput value={yTel} onChange={setYTel} placeholder="0532 000 00 00" className="w-full rounded-lg px-4 py-2 border border-slate-300 focus:ring-2 focus:ring-violet-500 outline-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">E-posta</label>
+            <input type="email" className="w-full rounded-lg px-4 py-2 border border-slate-300 focus:ring-2 focus:ring-violet-500 outline-none" value={yEposta} onChange={(e) => setYEposta(e.target.value)} />
+          </div>
+        </ModalShell>
+      )}
+
+      {editOpen && editM && (
+        <ModalShell
+          title="Müşteri Düzenle"
+          onClose={() => setEditOpen(false)}
+          footer={
+            <>
+              <ButtonOutline onClick={() => setEditOpen(false)}>İptal</ButtonOutline>
+              <Button
+                onClick={() => {
+                  editMusteri(editM.id, { ad: eAd, soyad: eSoyad, telefon: eTel, email: eEposta });
+                  setEditOpen(false);
+                }}
+              >
+                Kaydet
+              </Button>
+            </>
+          }
+        >
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Ad</label>
+              <input className="w-full rounded-lg px-4 py-2 border border-slate-300 focus:ring-2 focus:ring-violet-500 outline-none" value={eAd} onChange={(ev) => setEAd(ev.target.value)} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Soyad</label>
+              <input className="w-full rounded-lg px-4 py-2 border border-slate-300 focus:ring-2 focus:ring-violet-500 outline-none" value={eSoyad} onChange={(ev) => setESoyad(ev.target.value)} />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Telefon</label>
+            <NumericInput value={eTel} onChange={setETel} placeholder="0532 000 00 00" className="w-full rounded-lg px-4 py-2 border border-slate-300 focus:ring-2 focus:ring-violet-500 outline-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">E-posta</label>
+            <input type="email" className="w-full rounded-lg px-4 py-2 border border-slate-300 focus:ring-2 focus:ring-violet-500 outline-none" value={eEposta} onChange={(ev) => setEEposta(ev.target.value)} />
+          </div>
+        </ModalShell>
+      )}
+
+      {payOpen && payRandevu && (
+        <OdemeModal
+          randevu={payRandevu}
+          onClose={() => { setPayOpen(false); setPayRandevu(null); }}
+          onTahsil={(t) => { tahsilEt(payRandevu.id, t); setPayOpen(false); setPayRandevu(null); }}
+        />
+      )}
+    </div>
+  );
 }

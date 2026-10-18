@@ -1,22 +1,93 @@
-// ServicesView.jsx - Başlık yüksekliği eğitmenler ile aynı p-4
-import React, { useState, useEffect } from 'react';
-import { supabase } from './supabaseClient';
-import { Plus, Clock, Trash, X } from './Icons';
-export default function ServicesView() {
-  const [hizmetler, setHizmetler] = useState([]); const [loading, setLoading] = useState(true); const [modalAcik, setModalAcik] = useState(false);
-  const [adi, setAdi] = useState(''); const [tur, setTur] = useState('Bireysel'); const [sure, setSure] = useState(50); const [kapasite, setKapasite] = useState(1);
-  useEffect(() => { getir(); }, []);
-  const getir = async () => { setLoading(true); const { data } = await supabase.from('hizmetler').select('*').order('adi'); if (data) setHizmetler(data); setLoading(false); };
-  const kaydet = async (e) => { e.preventDefault(); const { error } = await supabase.from('hizmetler').insert([{ adi, tur, sure: parseInt(sure), katilim_sayisi: parseInt(kapasite) }]); if (!error) { setAdi(''); setModalAcik(false); getir(); } };
-  const sil = async (id) => { if (window.confirm('Silinsin mi?')) { await supabase.from('hizmetler').delete().eq('id', id); getir(); } };
+import React, { useState } from 'react';
+import { ModalShell, Button, ButtonOutline, NumericInput, fmtTutar } from './App';
+
+export default function ServicesView({ hizmetler, setActiveScreen, addHizmet, editHizmet, deleteHizmet }) {
+  const [open, setOpen] = useState(false);
+  const [edit, setEdit] = useState(null);
+  const [ad, setAd] = useState('');
+  const [fiyat, setFiyat] = useState('');
+  const [sure, setSure] = useState('40');
+  const [aktif, setAktif] = useState(true);
+
   return (
-    <div className="flex flex-col h-full bg-slate-50">
-      <div className="bg-white p-4 border-b border-slate-100 flex justify-between items-center">
-        <div><h2 className="text-[16px] font-extrabold text-slate-900">Hizmetler</h2><p className="text-[11px] font-bold text-slate-500">{hizmetler.length} hizmet tanımlı</p></div>
-        <button onClick={() => setModalAcik(true)} className="w-9 h-9 bg-[#5b46f5] text-white rounded-full flex items-center justify-center shadow"><Plus className="w-5 h-5" /></button>
+    <div className="h-full flex flex-col">
+      <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200 shrink-0">
+        <ButtonOutline onClick={() => setActiveScreen('diger')} className="px-3 py-1.5 text-xs">← Menü</ButtonOutline>
+        <span className="font-bold text-slate-900">Hizmetler</span>
+        <Button
+          onClick={() => { setAd(''); setFiyat(''); setSure('40'); setAktif(true); setEdit(null); setOpen(true); }}
+          className="px-3 py-1.5 text-xs"
+        >
+          + Hizmet
+        </Button>
       </div>
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">{loading ? <div className="text-center py-10 text-xs font-bold">Yükleniyor...</div> : hizmetler.map(h => (<div key={h.id} className="bg-white p-2.5 rounded-xl border shadow-sm flex justify-between items-center"><div className="text-left"><h3 className="text-[13px] font-extrabold text-slate-900 text-left">{h.adi}</h3><div className="flex items-center gap-2 mt-1 text-[11px] font-bold text-slate-500"><span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{h.sure} dk</span><span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${h.tur === 'Bireysel' ? 'bg-purple-50 text-purple-700' : 'bg-amber-50 text-amber-700'}`}>{h.tur} {h.tur==='Grup' ? `• ${h.katilim_sayisi} kişi` : ''}</span></div></div><button onClick={() => sil(h.id)} className="p-2 text-slate-300 hover:text-red-500"><Trash className="w-4 h-4" /></button></div>))}</div>
-      {modalAcik && <div className="fixed inset-0 z-50 bg-black/60 flex justify-center items-center p-4"><div className="bg-white w-full max-w-sm rounded-2xl p-5"><div className="flex justify-between border-b border-slate-100 pb-3"><h2 className="text-[15px] font-extrabold text-slate-900">Yeni Hizmet Ekle</h2><button onClick={() => setModalAcik(false)}><X className="w-5 h-5 text-slate-400" /></button></div><form onSubmit={kaydet} className="mt-3 space-y-3"><div><label className="text-xs font-extrabold text-slate-900">Ders Adı</label><input required placeholder="Örn: Reformer Pilates" value={adi} onChange={e => setAdi(e.target.value)} className="w-full mt-1 px-3 py-2.5 bg-slate-50 border rounded-xl text-sm font-bold" /></div><div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-extrabold text-slate-900">Tür</label><select value={tur} onChange={e => setTur(e.target.value)} className="w-full mt-1 px-3 py-2.5 bg-slate-50 border rounded-xl text-xs font-extrabold"><option>Bireysel</option><option>Grup</option></select></div><div><label className="text-xs font-extrabold text-slate-900">Süre (dk)</label><input type="tel" inputMode="numeric" pattern="[0-9]*" value={sure} onChange={e => setSure(e.target.value)} className="w-full mt-1 px-3 py-2.5 bg-slate-50 border rounded-xl text-xs font-bold" /></div></div><div><label className="text-xs font-extrabold text-slate-900">Kontenjan (Grup için)</label><input type="tel" inputMode="numeric" pattern="[0-9]*" min="1" max="30" value={kapasite} onChange={e=>setKapasite(e.target.value)} className="w-full mt-1 px-3 py-2.5 bg-slate-50 border rounded-xl text-xs font-bold" /></div><button type="submit" className="w-full py-3 bg-[#5b46f5] text-white rounded-xl text-sm font-extrabold">Ekle</button></form></div></div>}
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="grid gap-3">
+          {hizmetler.map((h) => (
+            <div key={h.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-slate-900 flex items-center gap-2">
+                  {h.ad}
+                  {!h.aktif && <span className="text-[10px] rounded-full bg-slate-200 text-slate-600 px-2 py-0.5">Pasif</span>}
+                </div>
+                <div className="text-xs text-slate-500">{fmtTutar(h.fiyat)} · {h.sure} dk</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <ButtonOutline
+                  onClick={() => { setAd(h.ad); setFiyat(String(h.fiyat)); setSure(String(h.sure)); setAktif(h.aktif); setEdit(h); setOpen(true); }}
+                  className="px-3 py-1.5 text-xs"
+                >
+                  Düzenle
+                </ButtonOutline>
+                <ButtonOutline
+                  onClick={() => { if (confirm(h.ad + ' silinsin mi?')) deleteHizmet(h.id); }}
+                  className="px-3 py-1.5 text-xs text-red-600 border-red-200"
+                >
+                  Sil
+                </ButtonOutline>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      {open && (
+        <ModalShell
+          title={edit ? 'Hizmet Düzenle' : 'Yeni Hizmet'}
+          onClose={() => setOpen(false)}
+          footer={
+            <>
+              <ButtonOutline onClick={() => setOpen(false)}>İptal</ButtonOutline>
+              <Button
+                onClick={() => {
+                  if (!ad) return;
+                  const data = { ad, fiyat: parseFloat(fiyat) || 0, sure: parseInt(sure) || 40, aktif };
+                  if (edit) editHizmet(edit.id, data); else addHizmet(data);
+                  setOpen(false);
+                }}
+              >
+                Kaydet
+              </Button>
+            </>
+          }
+        >
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Hizmet Adı</label>
+            <input className="w-full rounded-lg px-4 py-2 border border-slate-300 focus:ring-2 focus:ring-violet-500 outline-none" value={ad} onChange={(e) => setAd(e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Fiyat</label>
+            <NumericInput value={fiyat} onChange={setFiyat} placeholder="0" className="w-full rounded-lg px-4 py-2 border border-slate-300 focus:ring-2 focus:ring-violet-500 outline-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Süre (dk)</label>
+            <NumericInput value={sure} onChange={setSure} placeholder="40" className="w-full rounded-lg px-4 py-2 border border-slate-300 focus:ring-2 focus:ring-violet-500 outline-none" />
+          </div>
+          <label className="flex items-center gap-2 text-xs">
+            <input type="checkbox" checked={aktif} onChange={(e) => setAktif(e.target.checked)} className="rounded border-slate-300 text-violet-600 focus:ring-violet-500" />
+            Aktif
+          </label>
+        </ModalShell>
+      )}
     </div>
   );
 }

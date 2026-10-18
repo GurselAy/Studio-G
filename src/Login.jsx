@@ -1,16 +1,66 @@
 import React, { useState } from 'react';
-import { supabase } from './supabaseClient.js';
-import { Lock, Mail, Dumbbell } from './Icons.jsx';
-export default function Login(){
-  const [email,setEmail]=useState(''); const [password,setPassword]=useState(''); const [loading,setLoading]=useState(false); const [errorMsg,setErrorMsg]=useState(null);
-  const handleLogin = async(e)=>{
-    e.preventDefault(); setLoading(true); setErrorMsg(null);
-    const {error}=await supabase.auth.signInWithPassword({email,password});
-    if(error){
-      if(error.message.includes('Email not confirmed')) setErrorMsg('Email onaylı değil! SQL: UPDATE auth.users SET email_confirmed_at = NOW() WHERE email = \''+email+'\'');
-      else setErrorMsg('Giriş başarısız: '+error.message);
-    }
-    setLoading(false);
+export default function Login({ onLogin }) {
+  const [email, setEmail] = useState('admin@studiog.com');
+  const [sifre, setSifre] = useState('123456');
+  const [hata, setHata] = useState('');
+  const [yukleniyor, setYukleniyor] = useState(false);
+  const handle = async (e) => {
+    e.preventDefault();
+    setHata('');
+    setYukleniyor(true);
+    const ok = await onLogin(email, sifre);
+    if (!ok) setHata('E-posta veya şifre hatalı. (Demo: 123456)');
+    setYukleniyor(false);
   };
-  return (<div className="min-h-screen bg-slate-50 flex flex-col justify-center px-6 py-12 max-w-md mx-auto"><div className="text-center mb-8"><div className="inline-flex w-16 h-16 rounded-full bg-[#5b46f5] text-white items-center justify-center mb-4"><Dumbbell className="w-8 h-8" /></div><h2 className="text-2xl font-extrabold">Studio G</h2><p className="text-sm font-bold text-slate-500">Eğitmen ve Yönetici Portalı</p></div><div className="bg-white p-6 rounded-2xl border"><form onSubmit={handleLogin} className="space-y-4">{errorMsg && <div className="p-3 bg-red-50 text-red-600 text-xs font-bold rounded-xl border">{errorMsg}</div>}<div><label className="text-xs font-extrabold">E-Posta</label><div className="relative mt-1"><Mail className="w-5 h-5 absolute left-3 top-3 text-slate-400" /><input type="email" required value={email} onChange={e=>setEmail(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-bold" /></div></div><div><label className="text-xs font-extrabold">Şifre</label><div className="relative mt-1"><Lock className="w-5 h-5 absolute left-3 top-3 text-slate-400" /><input type="password" required value={password} onChange={e=>setPassword(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-bold" /></div></div><button type="submit" disabled={loading} className="w-full py-3 bg-[#5b46f5] text-white font-extrabold rounded-xl">{loading?'Giriş...':'Giriş Yap'}</button></form></div></div>);
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-violet-500 via-indigo-600 to-purple-700 p-6">
+      <div className="w-full max-w-md bg-white/5 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-white/10 text-white">
+        <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-600/20 mb-4">
+          <svg className="h-8 w-8 text-violet-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <rect x={2} y={4} width={20} height={16} rx={2} />
+            <path d="M10 4v4" />
+            <path d="M2 8h20" />
+            <path d="M6 4v4" />
+          </svg>
+        </div>
+        <h2 className="text-2xl font-bold mb-2">Studio G</h2>
+        <p className="text-violet-200 text-sm mb-8">Salon Yönetim Sistemi</p>
+        <form onSubmit={handle} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-violet-200 mb-1">E-posta</label>
+            <input
+              type="email"
+              className="w-full rounded-xl px-4 py-3 bg-white/10 border border-white/20 text-white placeholder-white/50 focus:ring-2 focus:ring-violet-400 outline-none"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-violet-200 mb-1">Şifre</label>
+            <input
+              type="password"
+              className="w-full rounded-xl px-4 py-3 bg-white/10 border border-white/20 text-white placeholder-white/50 focus:ring-2 focus:ring-violet-400 outline-none"
+              value={sifre}
+              onChange={(e) => setSifre(e.target.value)}
+            />
+          </div>
+          {hata && (
+            <div className="rounded-lg bg-red-900/30 border border-red-500/50 px-4 py-3 text-sm text-red-200">
+              {hata}
+            </div>
+          )}
+          <button
+            type="submit"
+            disabled={yukleniyor}
+            className="w-full inline-flex items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold bg-white text-violet-700 shadow active:scale-95 transition disabled:opacity-50"
+          >
+            {yukleniyor ? 'Giriş yapılıyor...' : 'Giriş Yap'}
+          </button>
+          <p className="text-center text-xs text-violet-200/80">
+            Demo: admin@studiog.com veya egitmen@studiog.com (şifre: 123456)
+          </p>
+        </form>
+      </div>
+    </div>
+  );
 }
