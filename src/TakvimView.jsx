@@ -9,15 +9,22 @@ export default function TakvimView({
   userRole,
   onRandevuClick,
 }) {
-  // Sıralanmış eğitmenler (giriş yapan eğitmen her zaman ilk sırada)
-  const siraliEgitmenler = useMemo(() => {
-    const list = Array.isArray(egitmenler) ? [...egitmenler] : [];
+  // useEffect ile sırala - her egitmenler/userId değişiminde yeniden hesapla
+  const [siraliEgitmenler, setSiraliEgitmenler] = useState([]);
+
+  useEffect(() => {
+    if (!Array.isArray(egitmenler) || egitmenler.length === 0) {
+      setSiraliEgitmenler([]);
+      return;
+    }
+    const list = [...egitmenler];
     if (userRole === 'Eğitmen' && userId) {
       const filtered = list.filter((e) => e.id !== userId);
       const me = list.find((e) => e.id === userId);
-      return me ? [me, ...filtered] : list;
+      setSiraliEgitmenler(me ? [me, ...filtered] : list);
+    } else {
+      setSiraliEgitmenler(list);
     }
-    return list;
   }, [egitmenler, userId, userRole]);
 
   const start = 8;
