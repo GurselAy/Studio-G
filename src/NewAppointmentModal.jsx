@@ -46,16 +46,31 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
   }, [secilenMusteri, secilenHizmet]);
 
   const formVerileriniGetir = async () => {
-    const { data: m } = await supabase.from('musteriler').select('id, adi').order('adi');
+    const { data: m } = await supabase.from('musteriler').select('*').order('adi');
     if (m) setMusteriler(m);
-    const { data: h } = await supabase.from('hizmetler').select('id, adi, sure, tur, katilim_sayisi').order('adi');
-    if (h) { setHizmetler(h); if (!secilenHizmet && h[0]) setSecilenHizmet(h[0].id); }
-    const { data: e } = await supabase.from('kullanicilar').select('id, adi').order('adi');
-    if (e) { setEgitmenler(e); if (!secilenEgitmen && e[0]) setSecilenEgitmen(e[0].id); }
+    const { data: h } = await supabase.from('hizmetler').select('*').order('adi');
+    if (h) {
+      setHizmetler(h);
+      if (!secilenHizmet && h[0]) setSecilenHizmet(h[0].id);
+    }
+    const { data: e } = await supabase.from('kullanicilar').select('*').order('adi');
+    if (e) {
+      setEgitmenler(e);
+      if (!secilenEgitmen && e[0]) setSecilenEgitmen(e[0].id);
+    }
   };
 
   const aktifPaketKontrol = async (musteriId, hizmetId) => {
-    const { data } = await supabase.from('musteri_paketleri').select('*').eq('musteri_id', musteriId).eq('hizmet_id', hizmetId).eq('durum', true).gt('kalan_seans', 0).limit(1).maybeSingle();
+    const { data } = await supabase
+      .from('musteri_paketleri')
+      .select('*')
+      .eq('musteri_id', musteriId)
+      .eq('hizmet_id', hizmetId)
+      .eq('durum', true)
+      .gt('kalan_seans', 0)
+      .order('olusturma_tarihi', { ascending: true })
+      .limit(1)
+      .maybeSingle();
     setMevcutPaket(data || null);
   };
 
@@ -66,10 +81,14 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
   const grubaEkle = () => {
     if (!secilenMusteri) return;
     if (secilenGrupMusteriler.includes(secilenMusteri)) return;
-    if (secilenGrupMusteriler.length >= kapasite) { setHata(`Kontenjan dolu (${kapasite} kişi)`); return; }
+    if (secilenGrupMusteriler.length >= kapasite) {
+      setHata(`Kontenjan dolu (${kapasite} kişi)`);
+      return;
+    }
     setSecilenGrupMusteriler([...secilenGrupMusteriler, secilenMusteri]);
     setSecilenMusteri('');
   };
+
   const gruptanCikar = (id) => setSecilenGrupMusteriler(secilenGrupMusteriler.filter((x) => x !== id));
 
   const kaydet = async (e) => {
@@ -109,14 +128,29 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
         proposed.push({ start: bas, end: bit });
       }
 
+      // Çakışma kontrolü
       for (const p of proposed) {
-        const { data: trainerBusy } = await supabase.from('randevular').select('id').eq('egitmen_id', secilenEgitmen).gte('baslangic_saati', new Date(p.start.getTime() - 1000).toISOString()).lte('baslangic_saati', new Date(p.start.getTime() + 1000).toISOString());
+        const { data: trainerBusy } = await supabase
+          .from('randevular')
+          .select('id')
+          .eq('egitmen_id', secilenEgitmen)
+          .gte('baslangic_saati', new Date(p.start.getTime() - 1000).toISOString())
+          .lte('baslangic_saati', new Date(p.start.getTime() + 1000).toISOString());
         if (trainerBusy) {
-          if (!isGrup && trainerBusy.length >= 1) throw new Error(`Eğitmen ${p.start.toLocaleDateString('tr-TR')} ${p.start.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })} tarihinde dolu`);
-          if (isGrup && trainerBusy.length + musteriIds.length > kapasite) throw new Error(`Grup kontenjanı dolu! Mevcut ${trainerBusy.length}/${kapasite}`);
+          if (!isGrup && trainerBusy.length >= 1) {
+            throw new Error(`Eğitmen ${p.start.toLocaleDateString('tr-TR')} ${p.start.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })} tarihinde dolu`);
+          }
+          if (isGrup && trainerBusy.length + musteriIds.length > kapasite) {
+            throw new Error(`Grup kontenjanı dolu! Mevcut ${trainerBusy.length}/${kapasite}`);
+          }
         }
         for (const mid of musteriIds) {
-          const { data: customerBusy } = await supabase.from('randevular').select('id').eq('musteri_id', mid).gte('baslangic_saati', new Date(p.start.getTime() - 1000).toISOString()).lte('baslangic_saati', new Date(p.start.getTime() + 1000).toISOString());
+          const { data: customerBusy } = await supabase
+            .from('randevular')
+            .select('id')
+            .eq('musteri_id', mid)
+            .gte('baslangic_saati', new Date(p.start.getTime() - 1000).toISOString())
+            .lte('baslangic_saati', new Date(p.start.getTime() + 1000).toISOString());
           if (customerBusy && customerBusy.length > 0) {
             const mAdi = musteriler.find((m) => m.id === mid)?.adi || 'Müşteri';
             throw new Error(`${mAdi} için ${p.start.toLocaleDateString('tr-TR')} tarihinde zaten randevu var`);
@@ -124,11 +158,18 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
         }
       }
 
+      // Paket oluşturma
       for (const mid of musteriIds) {
-        if (!isGrup) {
-          if (mevcutPaket && musteriIds[0] === mid) continue;
-        }
-        const { data: existingPaket } = await supabase.from('musteri_paketleri').select('id').eq('musteri_id', mid).eq('hizmet_id', secilenHizmet).eq('durum', true).gt('kalan_seans', 0).limit(1).maybeSingle();
+        if (!isGrup && mevcutPaket && musteriIds[0] === mid) continue;
+        const { data: existingPaket } = await supabase
+          .from('musteri_paketleri')
+          .select('id')
+          .eq('musteri_id', mid)
+          .eq('hizmet_id', secilenHizmet)
+          .eq('durum', true)
+          .gt('kalan_seans', 0)
+          .limit(1)
+          .maybeSingle();
         if (existingPaket) continue;
         if (!paketUcreti) throw new Error('Paket fiyatı girilmeli');
         const ucret = parseFloat(paketUcreti) || 0;
@@ -136,72 +177,269 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
         let durum = 'Ödenmedi';
         if (odenen >= ucret && ucret > 0) durum = 'Ödendi';
         else if (odenen > 0) durum = 'Kısmi Ödendi';
-        const { data: paket, error } = await supabase.from('musteri_paketleri').insert([{ musteri_id: mid, hizmet_id: secilenHizmet, toplam_seans: toplam, kalan_seans: toplam, ucret, odenen_tutar: odenen, odeme_durumu: durum, durum: true }]).select().single();
+        const { data: paket, error } = await supabase
+          .from('musteri_paketleri')
+          .insert([{
+            musteri_id: mid,
+            hizmet_id: secilenHizmet,
+            toplam_seans: toplam,
+            kalan_seans: toplam,
+            ucret,
+            odenen_tutar: odenen,
+            odeme_durumu: durum,
+            durum: true,
+          }])
+          .select()
+          .single();
         if (error) throw error;
-        if (odenen > 0) await supabase.from('odeme_hareketleri').insert([{ paket_id: paket.id, musteri_id: mid, tutar: odenen }]);
+        if (odenen > 0) {
+          await supabase.from('odeme_hareketleri').insert([{ paket_id: paket.id, musteri_id: mid, tutar: odenen }]);
+        }
       }
 
+      // Randevuları oluştur (egitmen_ucret trigger tarafından otomatik hesaplanacak)
       const insertList = [];
       for (let i = 0; i < proposed.length; i++) {
         const p = proposed[i];
         const grupId = genUUID();
         for (const mid of musteriIds) {
           insertList.push({
-            musteri_id: mid, egitmen_id: secilenEgitmen, hizmet_id: secilenHizmet,
-            baslangic_saati: p.start.toISOString(), bitis_saati: p.end.toISOString(),
-            durum: 'planlandı', yinelenen: toplam > 1, tekrar_sayisi: toplam > 1 ? toplam : null,
-            tekrar_araligi: toplam > 1 ? 'Hafta' : null, egitmen_ucret: 0, grup_id: grupId,
+            musteri_id: mid,
+            egitmen_id: secilenEgitmen,
+            hizmet_id: secilenHizmet,
+            baslangic_saati: p.start.toISOString(),
+            bitis_saati: p.end.toISOString(),
+            durum: 'planlandı',
+            yinelenen: toplam > 1,
+            tekrar_sayisi: toplam > 1 ? toplam : null,
+            tekrar_araligi: toplam > 1 ? 'Hafta' : null,
+            egitmen_ucret: 0, // trigger otomatik dolduracak
+            grup_id: grupId,
           });
         }
       }
       const { error } = await supabase.from('randevular').insert(insertList);
       if (error) throw error;
-      onSuccess(); onClose();
-    } catch (err) { setHata(err.message); } finally { setLoading(false); }
+      onSuccess();
+      onClose();
+    } catch (err) {
+      setHata(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex justify-center items-center p-4">
       <div className="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center pb-3 border-b border-slate-100"><h2 className="text-[15px] font-extrabold text-slate-900">Yeni Randevu & Paket</h2><button onClick={onClose}><X className="w-5 h-5 text-slate-400" /></button></div>
+        <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+          <h2 className="text-[15px] font-extrabold text-slate-900">Yeni Randevu & Paket</h2>
+          <button onClick={onClose}>
+            <X className="w-5 h-5 text-slate-400" />
+          </button>
+        </div>
         {hata && <div className="mt-2 p-2 bg-red-50 text-red-600 text-xs font-bold rounded border border-red-100">{hata}</div>}
         <form onSubmit={kaydet} className="mt-3 space-y-3">
           <div>
             <label className="text-xs font-extrabold text-slate-900">Ders / Hizmet</label>
-            <select value={secilenHizmet} onChange={(e) => setSecilenHizmet(e.target.value)} className="w-full mt-1 px-3 py-2.5 bg-slate-50 border rounded-xl text-xs font-bold">
-              {hizmetler.map((h) => <option key={h.id} value={h.id}>{h.adi} ({h.sure} dk) {h.tur === 'Grup' ? `• Grup ${h.katilim_sayisi} kişi` : ''}</option>)}
+            <select
+              value={secilenHizmet}
+              onChange={(e) => setSecilenHizmet(e.target.value)}
+              className="w-full mt-1 px-3 py-2.5 bg-slate-50 border rounded-xl text-xs font-bold"
+            >
+              {hizmetler.map((h) => (
+                <option key={h.id} value={h.id}>
+                  {h.adi} ({h.sure} dk) {h.tur === 'Grup' ? `• Grup ${h.katilim_sayisi} kişi` : ''}
+                </option>
+              ))}
             </select>
             {isGrup && <p className="text-[10px] font-bold text-amber-600 mt-1">Grup: Kontenjan {kapasite} kişi, ücret kişi başı</p>}
           </div>
+
           <div>
-            <div className="flex justify-between mb-1"><label className="text-xs font-extrabold text-slate-900">Müşteri {isGrup ? `(${secilenGrupMusteriler.length}/${kapasite})` : ''}</label><button type="button" onClick={() => setYeniMusteriModu(!yeniMusteriModu)} className="text-[11px] font-bold text-[#5b46f5]">{yeniMusteriModu ? 'Listeden Seç' : '+ Yeni Müşteri'}</button></div>
-            {yeniMusteriModu ? <div className="space-y-2 bg-slate-50 p-2 rounded-xl"><input value={yeniMusteriAdi} onChange={(e) => setYeniMusteriAdi(e.target.value)} placeholder="Ad Soyad" className="w-full px-3 py-2.5 text-xs border rounded-xl font-bold" /><input value={yeniMusteriTel} onChange={(e) => setYeniMusteriTel(e.target.value)} type="tel" inputMode="numeric" pattern="[0-9]*" placeholder="05xx" className="w-full px-3 py-2.5 text-xs border rounded-xl font-bold" /></div> : (
+            <div className="flex justify-between mb-1">
+              <label className="text-xs font-extrabold text-slate-900">
+                Müşteri {isGrup ? `(${secilenGrupMusteriler.length}/${kapasite})` : ''}
+              </label>
+              <button
+                type="button"
+                onClick={() => setYeniMusteriModu(!yeniMusteriModu)}
+                className="text-[11px] font-bold text-[#5b46f5]"
+              >
+                {yeniMusteriModu ? 'Listeden Seç' : '+ Yeni Müşteri'}
+              </button>
+            </div>
+            {yeniMusteriModu ? (
+              <div className="space-y-2 bg-slate-50 p-2 rounded-xl">
+                <input
+                  value={yeniMusteriAdi}
+                  onChange={(e) => setYeniMusteriAdi(e.target.value)}
+                  placeholder="Ad Soyad"
+                  className="w-full px-3 py-2.5 text-xs border rounded-xl font-bold"
+                />
+                <input
+                  value={yeniMusteriTel}
+                  onChange={(e) => setYeniMusteriTel(e.target.value)}
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="05xx (numeric)"
+                  className="w-full px-3 py-2.5 text-xs border rounded-xl font-bold"
+                />
+              </div>
+            ) : (
               <div className="flex gap-2">
-                <select value={secilenMusteri} onChange={(e) => setSecilenMusteri(e.target.value)} className="flex-1 px-3 py-2.5 bg-slate-50 border rounded-xl text-xs font-bold"><option value="">Seçin</option>{musteriler.filter((m) => !secilenGrupMusteriler.includes(m.id)).map((m) => <option key={m.id} value={m.id}>{m.adi}</option>)}</select>
-                {isGrup && <button type="button" onClick={grubaEkle} className="px-3 py-2 bg-[#5b46f5] text-white rounded-xl"><Plus className="w-4 h-4" /></button>}
+                <select
+                  value={secilenMusteri}
+                  onChange={(e) => setSecilenMusteri(e.target.value)}
+                  className="flex-1 px-3 py-2.5 bg-slate-50 border rounded-xl text-xs font-bold"
+                >
+                  <option value="">Seçin</option>
+                  {musteriler
+                    .filter((m) => !secilenGrupMusteriler.includes(m.id))
+                    .map((m) => (
+                      <option key={m.id} value={m.id}>{m.adi}</option>
+                    ))}
+                </select>
+                {isGrup && (
+                  <button
+                    type="button"
+                    onClick={grubaEkle}
+                    className="px-3 py-2 bg-[#5b46f5] text-white rounded-xl"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             )}
-            {isGrup && secilenGrupMusteriler.length > 0 && <div className="mt-2 space-y-1">{secilenGrupMusteriler.map((id) => { const m = musteriler.find((x) => x.id === id); return <div key={id} className="flex justify-between items-center bg-indigo-50 px-2.5 py-1.5 rounded-lg text-xs font-bold"><span>{m?.adi}</span><button type="button" onClick={() => gruptanCikar(id)}><Trash className="w-3.5 h-3.5 text-red-500" /></button></div>; })}</div>}
-            {!isGrup && mevcutPaket && <div className="mt-2 bg-emerald-50 border border-emerald-200 p-2 rounded-xl flex justify-between"><span className="text-xs font-extrabold text-emerald-800 flex gap-1"><Package className="w-4 h-4"/>Kalan: {mevcutPaket.kalan_seans}/{mevcutPaket.toplam_seans}</span><span className="text-[10px] font-bold bg-white px-2 py-0.5 rounded shadow">Paketten</span></div>}
+            {isGrup && secilenGrupMusteriler.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {secilenGrupMusteriler.map((id) => {
+                  const m = musteriler.find((x) => x.id === id);
+                  return (
+                    <div
+                      key={id}
+                      className="flex justify-between items-center bg-indigo-50 px-2.5 py-1.5 rounded-lg text-xs font-bold"
+                    >
+                      <span>{m?.adi}</span>
+                      <button type="button" onClick={() => gruptanCikar(id)}>
+                        <Trash className="w-3.5 h-3.5 text-red-500" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {!isGrup && mevcutPaket && (
+              <div className="mt-2 bg-emerald-50 border border-emerald-200 p-2 rounded-xl flex justify-between">
+                <span className="text-xs font-extrabold text-emerald-800 flex gap-1">
+                  <Package className="w-4 h-4" />
+                  Kalan: {mevcutPaket.kalan_seans}/{mevcutPaket.toplam_seans}
+                </span>
+                <span className="text-[10px] font-bold bg-white px-2 py-0.5 rounded shadow">Paketten</span>
+              </div>
+            )}
           </div>
+
           <div>
             <label className="text-xs font-extrabold text-slate-900">Eğitmen</label>
-            <select value={secilenEgitmen} onChange={(e) => setSecilenEgitmen(e.target.value)} className="w-full mt-1 px-3 py-2.5 bg-slate-50 border rounded-xl text-xs font-bold">{egitmenler.map((egt) => <option key={egt.id} value={egt.id}>{egt.adi}</option>)}</select>
+            <select
+              value={secilenEgitmen}
+              onChange={(e) => setSecilenEgitmen(e.target.value)}
+              className="w-full mt-1 px-3 py-2.5 bg-slate-50 border rounded-xl text-xs font-bold"
+            >
+              {egitmenler.map((eg) => (
+                <option key={eg.id} value={eg.id}>{eg.adi}</option>
+              ))}
+            </select>
           </div>
+
           <div className="grid grid-cols-2 gap-2">
-            <div><label className="text-xs font-extrabold text-slate-900">Tarih</label><input type="date" value={tarih} onChange={(e) => setTarih(e.target.value)} className="w-full mt-1 px-2 py-2.5 bg-slate-50 border rounded-xl text-xs font-bold" /></div>
-            <div><label className="text-xs font-extrabold text-slate-900">Saat</label><input type="time" value={saat} onChange={(e) => setSaat(e.target.value)} className="w-full mt-1 px-2 py-2.5 bg-slate-50 border rounded-xl text-xs font-bold" /></div>
-          </div>
-          <div className="bg-indigo-50/60 p-3 rounded-xl border border-indigo-100 space-y-2">
-            <div><label className="text-[11px] font-extrabold text-slate-900">Toplam Seans Sayısı</label><input type="tel" inputMode="numeric" pattern="[0-9]*" required min="1" max="50" value={seansSayisi} onChange={(e) => setSeansSayisi(e.target.value)} className="w-full mt-1 px-3 py-2 bg-white border rounded-xl text-xs font-extrabold" /></div>
-            <div className="grid grid-cols-2 gap-2">
-              <div><label className="text-[11px] font-extrabold text-slate-900">Paket Fiyatı (TL) {isGrup ? 'Kişi Başı *' : '*'}</label><input type="tel" inputMode="numeric" pattern="[0-9]*" required placeholder="8000" value={paketUcreti} onChange={(e) => setPaketUcreti(e.target.value)} className="w-full mt-1 px-2 py-2 bg-white border rounded-xl text-xs font-bold" /></div>
-              <div><label className="text-[11px] font-extrabold text-slate-900">Tahsil Edilen {isGrup ? 'Kişi Başı' : ''}</label><input type="tel" inputMode="numeric" pattern="[0-9]*" placeholder="8000" value={tahsilEdilen} onChange={(e) => setTahsilEdilen(e.target.value)} className="w-full mt-1 px-2 py-2 bg-white border rounded-xl text-xs font-bold" /></div>
+            <div>
+              <label className="text-xs font-extrabold text-slate-900">Tarih</label>
+              <input
+                type="date"
+                value={tarih}
+                onChange={(e) => setTarih(e.target.value)}
+                className="w-full mt-1 px-2 py-2.5 bg-slate-50 border rounded-xl text-xs font-bold"
+              />
             </div>
-            <p className="text-[10px] font-bold text-indigo-700 bg-white p-2 rounded-lg border">Not: Önümüzdeki {seansSayisi} hafta boyunca her {new Date(tarih).toLocaleDateString('tr-TR', { weekday: 'long' })} saat {saat}'e tüm seanslar oluşturulacak.</p>
+            <div>
+              <label className="text-xs font-extrabold text-slate-900">Saat</label>
+              <input
+                type="time"
+                value={saat}
+                onChange={(e) => setSaat(e.target.value)}
+                className="w-full mt-1 px-2 py-2.5 bg-slate-50 border rounded-xl text-xs font-bold"
+              />
+            </div>
           </div>
-          <button type="submit" disabled={loading} className="w-full py-3 bg-[#5b46f5] text-white rounded-xl text-xs font-extrabold shadow">{loading ? 'Kaydediliyor...' : `${seansSayisi} Seanslık ${isGrup ? `Grup (${secilenGrupMusteriler.length || 1} kişi)` : 'Paket'} Oluştur`}</button>
+
+          <div className="bg-indigo-50/60 p-3 rounded-xl border border-indigo-100 space-y-2">
+            <div>
+              <label className="text-[11px] font-extrabold text-slate-900">Toplam Seans Sayısı (numeric)</label>
+              <input
+                type="tel"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                required
+                min="1"
+                max="50"
+                value={seansSayisi}
+                onChange={(e) => setSeansSayisi(e.target.value.replace(/\D/g, ''))}
+                className="w-full mt-1 px-3 py-2 bg-white border rounded-xl text-xs font-extrabold"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[11px] font-extrabold text-slate-900">
+                  Paket Fiyatı (TL) {isGrup ? 'Kişi Başı *' : '*'}
+                </label>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  required
+                  placeholder="8000"
+                  value={paketUcreti}
+                  onChange={(e) => setPaketUcreti(e.target.value.replace(/\D/g, ''))}
+                  className="w-full mt-1 px-2 py-2 bg-white border rounded-xl text-xs font-bold"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-extrabold text-slate-900">
+                  Tahsil Edilen {isGrup ? 'Kişi Başı' : ''}
+                </label>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="8000"
+                  value={tahsilEdilen}
+                  onChange={(e) => setTahsilEdilen(e.target.value.replace(/\D/g, ''))}
+                  className="w-full mt-1 px-2 py-2 bg-white border rounded-xl text-xs font-bold"
+                />
+              </div>
+            </div>
+            <p className="text-[10px] font-bold text-indigo-700 bg-white p-2 rounded-lg border">
+              Not: Önümüzdeki {seansSayisi} hafta boyunca her{' '}
+              {new Date(tarih).toLocaleDateString('tr-TR', { weekday: 'long' })} saat {saat}'e tüm seanslar oluşturulacak.
+            </p>
+            <p className="text-[10px] font-bold text-emerald-700 bg-emerald-50 p-2 rounded-lg border border-emerald-200">
+              ✓ Eğitmen seans ücreti otomatik hesaplanır (eğitmen_hizmet_ucretleri tablosundan)
+            </p>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 bg-[#5b46f5] text-white rounded-xl text-xs font-extrabold shadow"
+          >
+            {loading
+              ? 'Kaydediliyor...'
+              : `${seansSayisi} Seanslık ${isGrup ? `Grup (${secilenGrupMusteriler.length || 1} kişi)` : 'Paket'} Oluştur`}
+          </button>
         </form>
       </div>
     </div>

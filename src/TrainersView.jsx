@@ -45,17 +45,24 @@ export default function TrainersView() {
     setOpen(true);
   };
 
-  const duzenle = (egitmen) => {
+  const duzenle = async (egitmen) => {
     setEditId(egitmen.id);
     setForm({ adi: egitmen.adi, telefon: egitmen.telefon || '', email: egitmen.email || '', sifre: '', rol: egitmen.rol });
-    const u = {};
-    hizmetler.forEach((h) => {
-      const v = egitmen.hizmet_ucretleri?.[h.id];
-      u[h.id] = v != null ? String(v) : '0';
-    });
-    setUcretler(u);
     setHata('');
     setInfo('');
+
+    // Mevcut hizmet ücretlerini çek
+    const { data: mevcut } = await supabase
+      .from('egitmen_hizmet_ucretleri')
+      .select('hizmet_id, ucret')
+      .eq('egitmen_id', egitmen.id);
+
+    const u = {};
+    hizmetler.forEach((h) => {
+      const v = mevcut?.find((m) => m.hizmet_id === h.id);
+      u[h.id] = v ? String(v.ucret) : '0';
+    });
+    setUcretler(u);
     setOpen(true);
   };
 
@@ -64,13 +71,9 @@ export default function TrainersView() {
     setHata('');
     setInfo('');
 
-    const hizmetUcretleriObj = {};
-    hizmetler.forEach((h) => {
-      const v = parseFloat(ucretler[h.id]);
-      if (!isNaN(v) && v > 0) hizmetUcretleriObj[h.id] = v;
-    });
-
     try {
+      let targetEgitmenId = editId;
+
       if (editId) {
         // Düzenleme
         const { error } = await supabase.from('kullanicilar').update({
@@ -78,12 +81,8 @@ export default function TrainersView() {
           telefon: form.telefon,
           email: form.email,
           rol: form.rol,
-          hizmet_ucretleri: hizmetUcretleriObj,
         }).eq('id', editId);
         if (error) throw error;
-        setInfo('Eğitmen güncellendi');
-        setOpen(false);
-        getir();
       } else {
         // Yeni ekleme
         if (form.sifre.length < 6) {
@@ -102,6 +101,7 @@ export default function TrainersView() {
               password: form.sifre,
             });
             if (signIn?.user) {
+              targetEgitmenId = signIn.user.id;
               await supabase.from('kullanicilar').upsert([{
                 id: signIn.user.id,
                 adi: form.adi,
@@ -109,19 +109,15 @@ export default function TrainersView() {
                 email: form.email,
                 rol: form.rol,
                 sifre_hash: 'supabase_auth',
-                hizmet_ucretleri: hizmetUcretleriObj,
               }], { onConflict: 'email' });
-              setInfo('Email zaten vardı, eşleştirildi');
-              setOpen(false);
-              getir();
-              await secondary.auth.signOut();
-              return;
+            } else {
+              throw new Error('Bu email zaten kayıtlı.');
             }
-            throw new Error('Bu email zaten kayıtlı.');
+          } else {
+            throw error;
           }
-          throw error;
-        }
-        if (data.user) {
+        } else if (data.user) {
+          targetEgitmenId = data.user.id;
           await supabase.from('kullanicilar').upsert([{
             id: data.user.id,
             adi: form.adi,
@@ -129,12 +125,46 @@ export default function TrainersView() {
             email: form.email,
             rol: form.rol,
             sifre_hash: 'supabase_auth',
-            hizmet_ucretleri: hizmetUcretleriObj,
           }], { onConflict: 'email' });
         }
-        setInfo('Eğitmen oluşturuldu');
-        setOpen(false);
-        setTimeout(getir, 800);
+      }
+
+      // Şifre güncellemesi (düzenleme modunda ve şifre girilmişse)
+      if (editId && form.sifre && form.sifre.length >= 6) {
+        // secondary client ile şifre güncelle
+        try {
+          await secondary.auth.signInWithPassword({ email: form.email, password: 'oldpassword' }).catch(() => {});
+        } catch (e) {}
+        // Not: Şifre güncelleme için kullanıcının mevcut şifresi gerekir
+        // Bu yüzden şifre güncellemesi şimdilik desteklenmiyor
+      }
+
+      // Hizmet ücretlerini kaydet (upsert)
+      const ucretRows = hizmetler
+        .map((h) => {
+          const v = parseFloat(ucretler[h.id]);
+          return {
+            egitmen_id: targetEgitmenId,
+            hizmet_id: h.id,
+            ucret: isNaN(v) ? 0 : v,
+          };
+        })
+        .filter((r) => r.ucret > 0); // 0 olanları kaydetme
+
+      // Önce mevcut ücretleri sil
+      await supabase.from('egitmen_hizmet_ucretleri').delete().eq('egitmen_id', targetEgitmenId);
+
+      // Yeni ücretleri ekle
+      if (ucretRows.length > 0) {
+        const { error: ucretErr } = await supabase.from('egitmen_hizmet_ucretleri').insert(ucretRows);
+        if (ucretErr) throw ucretErr;
+      }
+
+      setInfo(editId ? 'Eğitmen güncellendi' : 'Eğitmen oluşturuldu');
+      setOpen(false);
+      setTimeout(getir, 500);
+
+      if (!editId) {
         await secondary.auth.signOut();
       }
     } catch (err) {
@@ -285,21 +315,6 @@ export default function TrainersView() {
                     inputMode="numeric"
                     pattern="[0-9]*"
                     placeholder="123456"
-                    value={form.sifre}
-                    onChange={(e) => setForm({ ...form, sifre: e.target.value.replace(/\D/g, '') })}
-                    className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm"
-                  />
-                </div>
-              )}
-
-              {editId && (
-                <div>
-                  <label className="text-xs font-extrabold text-slate-900">Yeni Şifre (opsiyonel, numeric klavye)</label>
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    placeholder="Boş = değişmez"
                     value={form.sifre}
                     onChange={(e) => setForm({ ...form, sifre: e.target.value.replace(/\D/g, '') })}
                     className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm"
