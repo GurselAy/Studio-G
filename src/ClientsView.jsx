@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient.js';
 import OdemeModal from './OdemeModal.jsx';
-import { Plus, Phone, MessageSquare, Search, X, Trash, CreditCard } from './Icons.jsx';
+import MusteriDetayModal from './MusteriDetayModal.jsx';
+import { Plus, Phone, MessageSquare, Search, X, Trash, CreditCard, Edit } from './Icons.jsx';
 
 export default function ClientsView({ userRole }) {
   const isAdmin = userRole === 'Admin';
@@ -11,11 +12,10 @@ export default function ClientsView({ userRole }) {
   const [loading, setLoading] = useState(true);
   const [musteriModal, setMusteriModal] = useState(false);
   const [odeme, setOdeme] = useState(null);
+  const [detayMusteri, setDetayMusteri] = useState(null);
+  const [detayRandevu, setDetayRandevu] = useState(null);
   const [yeniAd, setYeniAd] = useState('');
   const [yeniTel, setYeniTel] = useState('');
-
-  const [eAd, setEAd] = useState('');
-  const [eTel, setETel] = useState('');
 
   useEffect(() => { getir(); }, []);
 
@@ -50,9 +50,7 @@ export default function ClientsView({ userRole }) {
       .select('*', { count: 'exact', head: true })
       .eq('musteri_id', id)
       .eq('durum', 'tamamlandı');
-
     await supabase.from('randevular').delete().eq('musteri_id', id);
-
     if (count === 0) {
       await supabase.from('odeme_hareketleri').delete().eq('musteri_id', id);
       await supabase.from('musteri_paketleri').delete().eq('musteri_id', id);
@@ -78,13 +76,11 @@ export default function ClientsView({ userRole }) {
     window.open(`https://wa.me/${c}`, '_blank');
   };
 
-  // TÜM aktif paketler
   const aktifPaketler = (m) => {
     if (!m.musteri_paketleri) return [];
     return m.musteri_paketleri.filter((p) => p.durum && p.kalan_seans > 0);
   };
 
-  // TÜM borç (tüm paketlerin toplamı)
   const toplamBorc = (m) => {
     const aktif = aktifPaketler(m);
     return aktif.reduce((s, p) => s + (p.ucret - p.odenen_tutar), 0);
@@ -152,7 +148,11 @@ export default function ClientsView({ userRole }) {
             const paketler = aktifPaketler(m);
             const toplam = toplamBorc(m);
             return (
-              <div key={m.id} className="bg-white p-3 rounded-xl border">
+              <div
+                key={m.id}
+                onClick={() => setDetayMusteri(m)}
+                className="bg-white p-3 rounded-xl border cursor-pointer hover:border-violet-400 hover:shadow-md transition"
+              >
                 <div className="flex justify-between items-start">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -165,7 +165,7 @@ export default function ClientsView({ userRole }) {
                     </div>
                     <div className="text-[10px] font-bold text-slate-500 mt-0.5">{m.telefon || '-'}</div>
                   </div>
-                  <div className="flex gap-1 flex-shrink-0">
+                  <div className="flex gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => wa(m.telefon)}
                       className="w-7 h-7 bg-emerald-50 rounded-full flex items-center justify-center"
@@ -192,13 +192,15 @@ export default function ClientsView({ userRole }) {
                   </div>
                 </div>
 
-                {/* TÜM aktif paketler - her hizmet için ayrı satır */}
                 {paketler.length > 0 && (
                   <div className="mt-2 space-y-1.5">
                     {paketler.map((p) => {
                       const borc = p.ucret - p.odenen_tutar;
                       return (
-                        <div key={p.id} className="flex items-center justify-between gap-2 flex-wrap">
+                        <div
+                          key={p.id}
+                          className="flex items-center justify-between gap-2 flex-wrap"
+                        >
                           <div className="flex items-center gap-1.5 flex-1 min-w-0">
                             <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap">
                               {p.kalan_seans}/{p.toplam_seans} {p.hizmetler?.adi}
@@ -211,12 +213,10 @@ export default function ClientsView({ userRole }) {
                           </div>
                           {borc > 0 && (
                             <button
-                              onClick={() =>
-                                setOdeme({
-                                  paket: p,
-                                  musteri: { id: m.id, adi: m.adi },
-                                })
-                              }
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOdeme({ paket: p, musteri: { id: m.id, adi: m.adi } });
+                              }}
                               className="text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full flex items-center gap-1 active:scale-95"
                             >
                               <CreditCard className="w-3 h-3" />
@@ -229,7 +229,6 @@ export default function ClientsView({ userRole }) {
                   </div>
                 )}
 
-                {/* Toplam borç (tüm paketler) */}
                 {paketler.length > 0 && toplam > 0 && (
                   <div className="mt-2 pt-2 border-t border-slate-100 flex justify-between items-center">
                     <span className="text-[10px] font-bold text-slate-500">Toplam Borç</span>
@@ -238,6 +237,11 @@ export default function ClientsView({ userRole }) {
                     </span>
                   </div>
                 )}
+
+                <div className="mt-2 text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                  <Edit className="w-3 h-3" />
+                  Detay için tıklayın
+                </div>
               </div>
             );
           })
@@ -290,6 +294,57 @@ export default function ClientsView({ userRole }) {
           onSuccess={getir}
         />
       )}
+
+      {detayMusteri && !detayRandevu && (
+        <MusteriDetayModal
+          musteri={detayMusteri}
+          onClose={() => setDetayMusteri(null)}
+          onRandevuClick={(r) => {
+            setDetayRandevu(r);
+          }}
+          onOdemeClick={(paket) => {
+            setOdeme({
+              paket,
+              musteri: { id: detayMusteri.id, adi: detayMusteri.adi },
+            });
+            setDetayMusteri(null);
+          }}
+        />
+      )}
+
+      {detayRandevu && (
+        <RandevuDetayWrapper
+          randevu={detayRandevu}
+          onClose={() => {
+            setDetayRandevu(null);
+            setDetayMusteri(null);
+          }}
+          onSuccess={() => {
+            getir();
+            setDetayRandevu(null);
+            setDetayMusteri(null);
+          }}
+        />
+      )}
     </div>
   );
 }
+
+function RandevuDetayWrapper({ randevu, onClose, onSuccess }) {
+  const [egitmenler, setEgitmenler] = useState([]);
+  useEffect(() => {
+    supabase.from('kullanicilar').select('id,adi').order('adi').then(({ data }) => {
+      if (data) setEgitmenler(data);
+    });
+  }, []);
+  return (
+    <RandevuDetayInline
+      randevu={randevu}
+      egitmenler={egitmenler}
+      onClose={onClose}
+      onSuccess={onSuccess}
+    />
+  );
+}
+
+import RandevuDetailModal from './RandevuDetailModal.jsx';
