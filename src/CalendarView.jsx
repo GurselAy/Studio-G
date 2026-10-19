@@ -91,7 +91,7 @@ export default function CalendarView() {
           <TakvimView
             secilenTarih={secilenTarih}
             setSecilenTarih={setSecilenTarih}
-            egitmenler={siraliEgitmenler}
+            egitmenler={egitmenler}
             userId={userId}
             userRole={userRole}
             onRandevuClick={(r) => {

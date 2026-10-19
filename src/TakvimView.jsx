@@ -1,6 +1,20 @@
 import React, { useRef, useMemo } from 'react';
 
 export default function TakvimView({ secilenTarih, setSecilenTarih, egitmenler, randevular, onRandevuClick }) {
+userRole, onRandevuClick }) {
+  // Sıralanmış eğitmenler
+  const siraliEgitmenler = useMemo(() => {
+    const list = Array.isArray(egitmenler) ? [...egitmenler] : [];
+    if (userRole === 'Eğitmen' && userId) {
+      const idx = list.findIndex((e) => e.id === userId);
+      if (idx > 0) {
+        const [me] = list.splice(idx, 1);
+        list.unshift(me);
+      }
+    }
+    return list;
+  }, [egitmenler, userId, userRole]);  
+  
   const start = 8;
   const end = 22;
   const slot = 30;
