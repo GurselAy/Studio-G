@@ -5,7 +5,7 @@ import OdemeModal from './OdemeModal.jsx';
 
 export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitmen, setSecilenEgitmen, egitmenler, userId, userRole, onRandevuClick }) {
   const [arama, setArama] = useState('');
-  const [paketMap, setPaketMap] = useState({}); // key: "musteriId_hizmetId" → paket
+  const [paketMap, setPaketMap] = useState({});
   const [odeme, setOdeme] = useState(null);
   const [randevular, setRandevular] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,7 +60,6 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
     if (data) setRandevular(data);
     setLoading(false);
 
-    // Paketleri çek - hizmet bazlı key
     if (data && data.length > 0) {
       const musteriIds = [...new Set(data.map((r) => r.musteri_id))];
       const hizmetIds = [...new Set(data.map((r) => r.hizmet_id))];
@@ -73,7 +72,6 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
         .gt('kalan_seans', 0);
       const map = {};
       (paketler || []).forEach((p) => {
-        // Her hizmet için ayrı paket tut
         const key = `${p.musteri_id}_${p.hizmet_id}`;
         if (!map[key]) map[key] = [];
         map[key].push(p);
@@ -117,7 +115,6 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
     }
   };
 
-  // Grupla (grup_id bazlı)
   const grouped = useMemo(() => {
     const g = {};
     (randevular || []).forEach((r) => {
@@ -201,17 +198,20 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
             const f = g[0];
             const isGrup = f.hizmetler?.tur === 'Grup';
             const cap = f.hizmetler?.katilim_sayisi || 1;
-            // HİZMETE ÖZEL PAKET - sadece bu randevunun hizmeti için
             const paketKey = `${f.musteri_id}_${f.hizmet_id}`;
             const paketler = paketMap[paketKey] || [];
-            const aktifPaket = paketler[0]; // o hizmet için ilk aktif paket
+            const aktifPaket = paketler[0];
             const borc = aktifPaket ? aktifPaket.ucret - aktifPaket.odenen_tutar : 0;
             const badge = durumBadge(f.durum);
 
             return (
               <div
                 key={f.grup_id || f.id}
-                className="bg-white rounded-xl p-2.5 shadow-sm border border-slate-100"
+                className={`bg-white rounded-xl p-2.5 shadow-sm border ${
+                  f.durum === 'tamamlandı' ? 'border-emerald-200 bg-emerald-50/30' :
+                  f.durum === 'iptal edildi' ? 'border-rose-200 bg-rose-50/30' :
+                  'border-slate-100'
+                }`}
               >
                 <div className="flex justify-between items-center">
                   <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold ${badge.color}`}>
@@ -226,6 +226,9 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
                     >
                       {f.kullanicilar?.adi?.split(' ')[0]}
                     </span>
+                    <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${badge.color}`}>
+                      {badge.text}
+                    </span>
                   </div>
                 </div>
 
@@ -234,7 +237,9 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
                     <div className="space-y-1">
                       {g.map((r) => (
                         <div key={r.id} className="flex justify-between items-center">
-                          <span className="text-[12px] font-extrabold text-slate-900">
+                          <span className={`text-[12px] font-extrabold ${
+                            f.durum === 'tamamlandı' ? 'line-through text-slate-500' : 'text-slate-900'
+                          }`}>
                             {r.musteriler?.adi}
                           </span>
                           <div className="flex gap-1">
@@ -257,7 +262,9 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
                     </div>
                   ) : (
                     <div className="flex justify-between items-center">
-                      <span className="text-[13px] font-extrabold text-slate-900">
+                      <span className={`text-[13px] font-extrabold ${
+                        f.durum === 'tamamlandı' ? 'line-through text-slate-500' : 'text-slate-900'
+                      }`}>
                         {f.musteriler?.adi}
                       </span>
                       <div className="flex gap-1">
@@ -280,7 +287,6 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
                   <div className="text-[10px] font-bold text-slate-500 mt-1">
                     {f.hizmetler?.adi} {isGrup ? `• Grup ${g.length}/${cap} kişi` : '• Bireysel'}
                   </div>
-                  {/* HİZMETE ÖZEL PAKET BİLGİSİ */}
                   {aktifPaket && (
                     <div className="text-[10px] font-bold mt-1 flex flex-wrap gap-1">
                       <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full">

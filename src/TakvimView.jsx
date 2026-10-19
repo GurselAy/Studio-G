@@ -26,19 +26,11 @@ export default function TakvimView({
   const [randevular, setRandevular] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const filtrelenecekEgitmenId = useMemo(() => {
-    if (userRole === 'Eğitmen' && userId) {
-      return userId;
-    }
-    return null;
-  }, [userRole, userId]);
-
   useEffect(() => {
     randevulariGetir();
     gecmisRandevulariTamamlandiYap();
-  }, [secilenTarih, filtrelenecekEgitmenId]);
+  }, [secilenTarih]);
 
-  // Geçmiş tarihli planlı randevuları otomatik tamamlandı yap
   const gecmisRandevulariTamamlandiYap = async () => {
     const simdi = new Date().toISOString();
     const { data: gecmis } = await supabase
@@ -53,10 +45,10 @@ export default function TakvimView({
     }
   };
 
+  // HERKES tüm randevuları görür (eğitmen filtresi YOK)
   const randevulariGetir = async () => {
     setLoading(true);
-    // Sadece planlandı randevuları çek
-    let q = supabase
+    const { data } = await supabase
       .from('randevular')
       .select('id, musteri_id, hizmet_id, egitmen_id, baslangic_saati, bitis_saati, durum, grup_id, musteriler(adi, telefon), hizmetler(adi, tur, katilim_sayisi)')
       .eq('durum', 'planlandı')
@@ -64,11 +56,6 @@ export default function TakvimView({
       .lte('baslangic_saati', secilenTarih + 'T23:59:59')
       .order('baslangic_saati');
 
-    if (filtrelenecekEgitmenId) {
-      q = q.eq('egitmen_id', filtrelenecekEgitmenId);
-    }
-
-    const { data } = await q;
     if (data) setRandevular(data);
     setLoading(false);
   };

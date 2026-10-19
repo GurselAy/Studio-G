@@ -27,7 +27,6 @@ export default function DigerView({ userRole }) {
     });
   }, []);
 
-  // Doğru sıra: Hizmetler, Eğitmenler, Eğitmen Raporları, Giderler, Kar/Zarar, İstatistik
   const menuAdmin = [
     { id: 'hizmetler', label: 'Hizmetler', icon: Clock },
     { id: 'egitmenler', label: 'Eğitmenler', icon: Users },
@@ -37,7 +36,6 @@ export default function DigerView({ userRole }) {
     { id: 'istatistik', label: 'İstatistik', icon: ChartBar },
   ];
 
-  // Eğitmen için boş liste (hiçbir menü görünmeyecek)
   const filteredMenu = isAdmin ? menuAdmin : [];
 
   if (subTab) {
@@ -70,13 +68,7 @@ export default function DigerView({ userRole }) {
         </div>
         <div className="flex-1 overflow-hidden">
           {subTab === 'profil' ? (
-            <ProfilView
-              embedded
-              paket={null}
-              musteri={null}
-              onClose={() => setSubTab(null)}
-              onSuccess={() => {}}
-            />
+            <ProfilView embedded paket={null} musteri={null} onClose={() => setSubTab(null)} onSuccess={() => {}} />
           ) : (
             <Comp />
           )}
@@ -93,45 +85,42 @@ export default function DigerView({ userRole }) {
             {(profile?.adi || 'Y').charAt(0).toUpperCase()}
           </span>
         </div>
-        <h2 className="text-[18px] font-extrabold text-slate-900 mt-3">{profile?.adi || 'Yönetici'}</h2>
-        <p className="text-[11px] font-bold text-white/90 mt-1">{profile?.rol || userRole}</p>
+        <h2 className="text-[18px] font-extrabold text-slate-900 mt-3">
+          {profile?.adi || 'Yönetici'}
+        </h2>
+        <p className="text-[11px] font-bold text-white/90 mt-1">
+          {profile?.rol || userRole}
+        </p>
       </div>
       <div className="px-4 -mt-8 relative z-10">
         <div className="bg-white rounded-2xl border shadow-sm p-4 space-y-3">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="w-9 h-9 bg-indigo-50 rounded-full flex items-center justify-center flex-shrink-0">
-                <Mail className="w-4 h-4 text-[#5b46f5]" />
-              </div>
-              <div className="text-left min-w-0 flex-1">
-                <div className="text-[10px] font-bold text-slate-400">E-posta</div>
-                <div className="text-[12px] font-extrabold truncate">{profile?.email || '-'}</div>
-              </div>
+          {/* E-posta satırı - sadece bilgi */}
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-indigo-50 rounded-full flex items-center justify-center flex-shrink-0">
+              <Mail className="w-4 h-4 text-[#5b46f5]" />
             </div>
-            <button
-              onClick={() => setSubTab('profil')}
-              className="text-[11px] font-extrabold text-[#5b46f5] bg-indigo-50 px-3 py-1.5 rounded-full flex-shrink-0"
-            >
-              Düzenle
-            </button>
-          </div>
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="w-9 h-9 bg-indigo-50 rounded-full flex items-center justify-center flex-shrink-0">
-                <Phone className="w-4 h-4 text-[#5b46f5]" />
-              </div>
-              <div className="text-left min-w-0 flex-1">
-                <div className="text-[10px] font-bold text-slate-400">Telefon</div>
-                <div className="text-[12px] font-extrabold truncate">{profile?.telefon || '-'}</div>
-              </div>
+            <div className="text-left min-w-0 flex-1">
+              <div className="text-[10px] font-bold text-slate-400">E-posta</div>
+              <div className="text-[12px] font-extrabold truncate">{profile?.email || '-'}</div>
             </div>
-            <button
-              onClick={() => setSubTab('profil')}
-              className="text-[11px] font-extrabold text-[#5b46f5] bg-indigo-50 px-3 py-1.5 rounded-full flex-shrink-0"
-            >
-              Düzenle
-            </button>
           </div>
+          {/* Telefon satırı - sadece bilgi */}
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-indigo-50 rounded-full flex items-center justify-center flex-shrink-0">
+              <Phone className="w-4 h-4 text-[#5b46f5]" />
+            </div>
+            <div className="text-left min-w-0 flex-1">
+              <div className="text-[10px] font-bold text-slate-400">Telefon</div>
+              <div className="text-[12px] font-extrabold truncate">{profile?.telefon || '-'}</div>
+            </div>
+          </div>
+          {/* TEK Düzenle butonu - tam ortada */}
+          <button
+            onClick={() => setSubTab('profil')}
+            className="w-full mt-2 py-2.5 bg-[#5b46f5] text-white rounded-xl font-extrabold text-sm"
+          >
+            Profili Düzenle
+          </button>
         </div>
       </div>
       <div className="p-4 space-y-2.5">
@@ -172,7 +161,7 @@ export default function DigerView({ userRole }) {
             <span className="text-[14px] font-extrabold text-red-600">Çıkış Yap</span>
           </button>
         </div>
-        <div className="text-center text-[11px] font-bold text-slate-300 py-2">Studio G v1.0.0</div>
+        <div className="text-center text-[11px] font-bold text-slate-300 py-2">Studio G v2.0.0</div>
       </div>
     </div>
   );
