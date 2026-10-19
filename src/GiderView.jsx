@@ -4,7 +4,7 @@ import { Plus, Trash, X } from './Icons.jsx';
 
 const GENEL_KATEGORILER = [
   'Kira', 'Elektrik', 'Su', 'Doğalgaz', 'İnternet',
-  'Temizlik', 'Bakım', 'Sigorta', 'Muhasebe', 'Vergi', 'Genel'
+  'Temizlik', 'Bakım', 'Sigorta', 'Muhasebe', 'Vergi', 'Genel',
 ];
 
 export default function GiderView() {
@@ -17,7 +17,7 @@ export default function GiderView() {
     tutar: '',
     aciklama: '',
     tarih: new Date().toISOString().slice(0, 10),
-    selectValue: 'GENEL|Kira'
+    selectValue: 'GENEL|Kira',
   });
 
   useEffect(() => { getir(); }, []);
@@ -28,10 +28,9 @@ export default function GiderView() {
       .select('*, kullanicilar(adi)')
       .order('tarih', { ascending: false });
     if (data) setList(data);
-
     const { data: eg } = await supabase
       .from('kullanicilar')
-      .select('id, adi')
+      .select('id,adi')
       .order('adi');
     if (eg) setEgitmenler(eg);
   };
@@ -55,15 +54,15 @@ export default function GiderView() {
     const { error } = await supabase.from('isletme_giderleri').insert([{
       kategori: form.kategori,
       aciklama: form.aciklama,
-      tutar: parseFloat(form.tutar),
+      tutar: parseFloat(form.tutar) || 0,
       tarih: form.tarih,
-      egitmen_id: form.egitmen_id || null
+      egitmen_id: form.egitmen_id || null,
     }]);
     if (error) { alert(error.message); return; }
     setOpen(false);
     setForm({
       kategori: 'Kira', egitmen_id: '', tutar: '', aciklama: '',
-      tarih: new Date().toISOString().slice(0, 10), selectValue: 'GENEL|Kira'
+      tarih: new Date().toISOString().slice(0, 10), selectValue: 'GENEL|Kira',
     });
     getir();
   };
@@ -80,7 +79,7 @@ export default function GiderView() {
         <div>
           <h2 className="text-[16px] font-extrabold">Giderler</h2>
           <p className="text-[11px] font-bold text-slate-500">
-            {list.length} kayıt • {list.reduce((s, x) => s + parseFloat(x.tutar), 0).toLocaleString('tr-TR')} TL
+            {list.length} kayıt • {list.reduce((s, x) => s + parseFloat(x.tutar || 0), 0).toLocaleString('tr-TR')} TL
           </p>
         </div>
         <button
@@ -90,7 +89,6 @@ export default function GiderView() {
           <Plus className="w-5 h-5" />
         </button>
       </div>
-
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {list.map((g) => (
           <div key={g.id} className="bg-white p-3 rounded-xl border flex justify-between items-center">
@@ -102,7 +100,7 @@ export default function GiderView() {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[13px] font-extrabold text-red-600">
-                {parseFloat(g.tutar).toLocaleString('tr-TR')} TL
+                {parseFloat(g.tutar || 0).toLocaleString('tr-TR')} TL
               </span>
               <button onClick={() => sil(g.id)}>
                 <Trash className="w-4 h-4 text-slate-300" />
@@ -111,7 +109,6 @@ export default function GiderView() {
           </div>
         ))}
       </div>
-
       {open && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-sm rounded-2xl p-5">
@@ -142,14 +139,15 @@ export default function GiderView() {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-extrabold">Tutar (TL)</label>
+                <label className="text-xs font-extrabold">Tutar (TL, numeric)</label>
                 <input
                   required
                   type="tel"
-                  inputMode="decimal"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   placeholder="1500"
                   value={form.tutar}
-                  onChange={(e) => setForm({ ...form, tutar: e.target.value.replace(',', '.') })}
+                  onChange={(e) => setForm({ ...form, tutar: e.target.value.replace(/[^\d.]/g, '') })}
                   className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-extrabold"
                 />
               </div>
