@@ -6,7 +6,7 @@ import OdemeModal from './OdemeModal.jsx';
 export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitmen, setSecilenEgitmen, egitmenler, userId, userRole, onRandevuClick }) {
   const [arama, setArama] = useState('');
   const [paketMap, setPaketMap] = useState({});
-  const [odeme, setOdeme] = useState(null); // { paket, musteri }
+  const [odeme, setOdeme] = useState(null);
   const [randevular, setRandevular] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -23,10 +23,26 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
 
   useEffect(() => {
     randevulariGetir();
+    gecmisRandevulariTamamlandiYap();
   }, [secilenTarih, secilenEgitmen, userId, userRole]);
+
+  const gecmisRandevulariTamamlandiYap = async () => {
+    const simdi = new Date().toISOString();
+    const { data: gecmis } = await supabase
+      .from('randevular')
+      .select('id, durum')
+      .eq('durum', 'planlandı')
+      .lt('bitis_saati', simdi)
+      .limit(50);
+    if (gecmis && gecmis.length > 0) {
+      const ids = gecmis.map((r) => r.id);
+      await supabase.from('randevular').update({ durum: 'tamamlandı' }).in('id', ids);
+    }
+  };
 
   const randevulariGetir = async () => {
     setLoading(true);
+    // Admin tüm durumları görür, eğitmen sadece planlandı
     let q = supabase
       .from('randevular')
       .select('id, musteri_id, hizmet_id, egitmen_id, baslangic_saati, bitis_saati, durum, grup_id, musteriler(adi, telefon), hizmetler(adi, tur, katilim_sayisi), kullanicilar(adi)')
@@ -34,19 +50,20 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
       .lte('baslangic_saati', secilenTarih + 'T23:59:59')
       .order('baslangic_saati');
 
-    // Eğitmen ise sadece kendi seansları
     if (userRole === 'Eğitmen' && userId) {
       q = q.eq('egitmen_id', userId);
+      // Eğitmen sadece planlı randevuları görsün
+      q = q.eq('durum', 'planlandı');
     } else if (secilenEgitmen && secilenEgitmen !== 'tumu') {
-      // Admin için manuel seçim
       q = q.eq('egitmen_id', secilenEgitmen);
     }
+    // Admin ise filtre yok, hepsi gelir (planlandı + tamamlandı + iptal)
 
     const { data } = await q;
     if (data) setRandevular(data);
     setLoading(false);
 
-    // Paketleri çek (müşterilerin borçları için)
+    // Paketleri çek
     if (data && data.length > 0) {
       const musteriIds = [...new Set(data.map((r) => r.musteri_id))];
       const { data: paketler } = await supabase
@@ -78,13 +95,6 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
     window.open(`https://wa.me/${c}`, '_blank');
   };
 
-  const durumGuncelle = async (id, yeni, e) => {
-    e.stopPropagation();
-    await supabase.from('randevular').update({ durum: yeni }).eq('id', id);
-    randevulariGetir();
-  };
-
-  // Tüm Seansları Sil (Ajanda detayından)
   const tumSeanslariSil = async (randevu, e) => {
     if (e) e.stopPropagation();
     if (!window.confirm('Bu randevuya ait TÜM seanslar silinecek. Tamamlanmış seansların hakedişi korunur. Devam edilsin mi?')) return;
@@ -92,21 +102,12 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
       const ids = randevu.grup_id
         ? (await supabase.from('randevular').select('id').eq('grup_id', randevu.grup_id)).data?.map((r) => r.id) || [randevu.id]
         : [randevu.id];
-
-      // Tamamlanmamış seansları bul
       const silinecekIds = (await supabase
         .from('randevular')
         .select('id, durum')
         .in('id', ids)).data?.filter((r) => r.durum !== 'tamamlandı').map((r) => r.id) || [];
-
       if (silinecekIds.length > 0) {
-        // Ödeme referanslarını koru (müşteri_id null yapma — sadece referansı kaldır)
-        // Kazanç kayıtlarında referansı null'la
-        await supabase
-          .from('egitmen_kazanc_hareketleri')
-          .update({ randevu_id: null })
-          .in('randevu_id', silinecekIds);
-        // Randevuları sil
+        await supabase.from('egitmen_kazanc_hareketleri').update({ randevu_id: null }).in('randevu_id', silinecekIds);
         await supabase.from('randevular').delete().in('id', silinecekIds);
       }
       randevulariGetir();
@@ -143,9 +144,14 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
 
   const colors = ['#2563eb', '#16a34a', '#c026d3', '#f97316', '#0891b2', '#7c3aed'];
 
+  const durumBadge = (durum) => {
+    if (durum === 'tamamlandı') return { text: 'Tamamlandı', color: 'bg-emerald-100 text-emerald-700' };
+    if (durum === 'iptal edildi') return { text: 'İptal', color: 'bg-rose-100 text-rose-700' };
+    return { text: 'Planlandı', color: 'bg-slate-100 text-slate-700' };
+  };
+
   return (
     <div className="flex flex-col h-full bg-[#f8f7ff]" onTouchStart={onStart} onTouchEnd={onEnd}>
-      {/* Eğitmen filtresi - sadece Admin için göster */}
       {userRole === 'Admin' && (
         <div className="bg-white p-2 border-b">
           <div className="flex gap-2 overflow-x-auto no-scrollbar">
@@ -157,7 +163,7 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
             >
               Tümü
             </button>
-            {egitmenler.map((e) => (
+            {(egitmenler || []).map((e) => (
               <button
                 key={e.id}
                 onClick={() => setSecilenEgitmen(e.id)}
@@ -197,19 +203,15 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
             const paketler = paketMap[f.musteri_id] || [];
             const aktifPaket = paketler[0];
             const borc = aktifPaket ? aktifPaket.ucret - aktifPaket.odenen_tutar : 0;
-            const isTamam = f.durum === 'tamamlandı';
+            const badge = durumBadge(f.durum);
 
             return (
               <div
                 key={f.grup_id || f.id}
-                className={`bg-white rounded-xl p-2.5 shadow-sm border ${
-                  isTamam ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-100'
-                }`}
+                className="bg-white rounded-xl p-2.5 shadow-sm border border-slate-100"
               >
                 <div className="flex justify-between items-center">
-                  <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
-                    isTamam ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100'
-                  }`}>
+                  <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold ${badge.color}`}>
                     <Clock className="w-3 h-3" />
                     {saatFormatla(f.baslangic_saati)} - {saatFormatla(f.bitis_saati)}
                     {isGrup ? ` • ${g.length}/${cap}` : ''}
@@ -217,22 +219,10 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
                   <div className="flex gap-1.5 items-center">
                     <span
                       className="text-[9px] font-extrabold text-white px-2 py-0.5 rounded-full"
-                      style={{ backgroundColor: colors[egitmenler.findIndex((e) => e.id === f.egitmen_id) % colors.length] || '#6366f1' }}
+                      style={{ backgroundColor: colors[(egitmenler || []).findIndex((e) => e.id === f.egitmen_id) % colors.length] || '#6366f1' }}
                     >
                       {f.kullanicilar?.adi?.split(' ')[0]}
                     </span>
-                    <select
-                      value={f.durum}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => durumGuncelle(f.id, e.target.value, e)}
-                      className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full border-0 ${
-                        f.durum === 'tamamlandı' ? 'bg-emerald-100 text-emerald-800' : 'bg-indigo-50 text-indigo-700'
-                      }`}
-                    >
-                      <option value="planlandı">Planlandı</option>
-                      <option value="tamamlandı">Tamamlandı</option>
-                      <option value="iptal edildi">İptal</option>
-                    </select>
                   </div>
                 </div>
 
@@ -241,9 +231,7 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
                     <div className="space-y-1">
                       {g.map((r) => (
                         <div key={r.id} className="flex justify-between items-center">
-                          <span className={`text-[12px] font-extrabold ${
-                            isTamam ? 'line-through text-slate-500' : 'text-slate-900'
-                          }`}>
+                          <span className={`text-[12px] font-extrabold text-slate-900`}>
                             {r.musteriler?.adi}
                           </span>
                           <div className="flex gap-1">
@@ -266,9 +254,7 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
                     </div>
                   ) : (
                     <div className="flex justify-between items-center">
-                      <span className={`text-[13px] font-extrabold ${
-                        isTamam ? 'line-through text-slate-500' : 'text-slate-900'
-                      }`}>
+                      <span className="text-[13px] font-extrabold text-slate-900">
                         {f.musteriler?.adi}
                       </span>
                       <div className="flex gap-1">
@@ -312,7 +298,7 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
                     )}
                   </div>
                   <div className="flex gap-1">
-                    {isGrup && (
+                    {isGrup && f.durum === 'planlandı' && (
                       <button
                         onClick={(e) => tumSeanslariSil(f, e)}
                         className="text-[10px] font-extrabold bg-red-50 text-red-600 border border-red-200 px-2.5 py-1 rounded-full"
