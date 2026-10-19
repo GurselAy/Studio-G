@@ -52,16 +52,14 @@ export default function CalendarView() {
     veriGetir();
   }, [veriGetir]);
 
-  // Eğitmen ise otomatik kendi kolonu ilk sırada
+  // Yönetici her zaman ilk sırada
   const siraliEgitmenler = useMemo(() => {
     if (!Array.isArray(egitmenler) || egitmenler.length === 0) return [];
-    const me = egitmenler.find((e) => e.id === userId);
-    const others = egitmenler.filter((e) => e.id !== userId);
-    if (userRole === 'Eğitmen' && me) {
-      return [me, ...others];
-    }
-    return egitmenler;
-  }, [egitmenler, userRole, userId]);
+    // Önce yöneticileri, sonra eğitmenleri sırala
+    const adminler = egitmenler.filter((e) => e.rol === 'Admin');
+    const egitmenlerOnly = egitmenler.filter((e) => e.rol !== 'Admin');
+    return [...adminler, ...egitmenlerOnly];
+  }, [egitmenler]);
 
   return (
     <div className="flex flex-col h-screen bg-slate-50 max-w-md mx-auto shadow-2xl overflow-hidden">
