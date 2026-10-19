@@ -10,12 +10,7 @@ export default function ClientsView({ userRole }) {
   const [filter, setFilter] = useState('tumu');
   const [loading, setLoading] = useState(true);
   const [musteriModal, setMusteriModal] = useState(false);
-  
-  const [odeme, setOdeme] = useState(null); // { paket, musteri }
-  // const [odemePaket, setOdemePaket] = useState(null);
-  // const [odemeMusteri, setOdemeMusteri] = useState(null);
-
-
+  const [odeme, setOdeme] = useState(null);
   const [yeniAd, setYeniAd] = useState('');
   const [yeniTel, setYeniTel] = useState('');
 
@@ -56,15 +51,12 @@ export default function ClientsView({ userRole }) {
       .eq('musteri_id', id)
       .eq('durum', 'tamamlandı');
 
-    // Önce mevcut randevuları sil
     await supabase.from('randevular').delete().eq('musteri_id', id);
 
     if (count === 0) {
-      // Hiç tamamlanmamış randevu yoksa ödeme ve paketleri de silebiliriz
       await supabase.from('odeme_hareketleri').delete().eq('musteri_id', id);
       await supabase.from('musteri_paketleri').delete().eq('musteri_id', id);
     } else {
-      // Tamamlanmış randevu varsa kazanç kayıtlarını koruyalım
       await supabase
         .from('odeme_hareketleri')
         .update({ paket_id: null, musteri_id: null })
@@ -86,27 +78,23 @@ export default function ClientsView({ userRole }) {
     window.open(`https://wa.me/${c}`, '_blank');
   };
 
-  // Müşterinin toplam borcunu hesapla
-  const musteriBorcHesapla = (m) => {
-    if (!m.musteri_paketleri) return 0;
-    return m.musteri_paketleri.reduce((s, p) => {
-      const kalan = Math.max(0, parseFloat(p.ucret || 0) - parseFloat(p.odenen_tutar || 0));
-      return s + kalan;
-    }, 0);
+  // TÜM aktif paketler
+  const aktifPaketler = (m) => {
+    if (!m.musteri_paketleri) return [];
+    return m.musteri_paketleri.filter((p) => p.durum && p.kalan_seans > 0);
   };
 
-  // Müşterinin ilk açık paketini bul
-  const ilkAcikPaket = (m) => {
-    if (!m.musteri_paketleri) return null;
-    return m.musteri_paketleri.find((p) => p.durum && p.kalan_seans > 0) || null;
+  // TÜM borç (tüm paketlerin toplamı)
+  const toplamBorc = (m) => {
+    const aktif = aktifPaketler(m);
+    return aktif.reduce((s, p) => s + (p.ucret - p.odenen_tutar), 0);
   };
 
   const filtreli = musteriler.filter((m) => {
     const okArama =
-      m.adi.toLowerCase().includes(arama.toLowerCase()) ||
-      (m.telefon || '').includes(arama);
+      m.adi.toLowerCase().includes(arama.toLowerCase()) || (m.telefon || '').includes(arama);
     if (!okArama) return false;
-    if (filter === 'borclu') return musteriBorcHesapla(m) > 0;
+    if (filter === 'borclu') return toplamBorc(m) > 0;
     return true;
   });
 
@@ -161,33 +149,21 @@ export default function ClientsView({ userRole }) {
           <div className="text-center py-10 text-xs font-bold text-slate-400">Müşteri bulunamadı</div>
         ) : (
           filtreli.map((m) => {
-            const borc = musteriBorcHesapla(m);
-            const aktif = ilkAcikPaket(m);
+            const paketler = aktifPaketler(m);
+            const toplam = toplamBorc(m);
             return (
-              <div
-                key={m.id}
-                className="bg-white p-3 rounded-xl border flex flex-col gap-2"
-              >
+              <div key={m.id} className="bg-white p-3 rounded-xl border">
                 <div className="flex justify-between items-start">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-extrabold text-[13px] text-slate-900">{m.adi}</span>
-                      {borc > 0 && (
+                      {toplam > 0 && (
                         <span className="text-[9px] font-bold rounded-full bg-rose-100 text-rose-600 px-2 py-0.5">
                           Borçlu
                         </span>
                       )}
                     </div>
-                    <div className="text-[10px] font-bold text-slate-500 mt-0.5">
-                      {m.telefon || '-'}
-                    </div>
-                    {aktif && (
-                      <div className="text-[10px] font-bold mt-1 text-slate-600">
-                        <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full">
-                          {aktif.kalan_seans}/{aktif.toplam_seans} {aktif.hizmetler?.adi}
-                        </span>
-                      </div>
-                    )}
+                    <div className="text-[10px] font-bold text-slate-500 mt-0.5">{m.telefon || '-'}</div>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
                     <button
@@ -216,44 +192,51 @@ export default function ClientsView({ userRole }) {
                   </div>
                 </div>
 
-      {/* Borç bilgisi ve Ödeme butonu - AKTİF */}
-      {borc > 0 && (
-        <button
-          // onClick={() => {
-            // console.log('Borçlu paketler:', m.musteri_paketleri);
-            // İlk borçlu paketi bul (herhangi bir hata durumunda alert göster)
-            // const borcluPaket = (m.musteri_paketleri || []).find(
-             //  (p) => parseFloat(p.ucret || 0) - parseFloat(p.odenen_tutar || 0) > 0
-           //  );
-           //  if (!borcluPaket) {
-            //   alert('Bu müşterinin borçlu paketi bulunamadı');
-             //  return;
-            // }
-           //  console.log('Seçilen paket:', borcluPaket);
-           //  setOdemePaket(borcluPaket);
-           //  setOdemeMusteri({ id: m.id, adi: m.adi });
-          // }}     
-          
-          onClick={() => {
-          const borcluPaket = (m.musteri_paketleri || []).find(
-           (p) => parseFloat(p.ucret || 0) - parseFloat(p.odenen_tutar || 0) > 0
-          );
-          if (!borcluPaket) { alert('Bu müşterinin borçlu paketi bulunamadı'); return; }
-          setOdeme({ paket: borcluPaket, musteri: { id: m.id, adi: m.adi } });
-      }}
+                {/* TÜM aktif paketler - her hizmet için ayrı satır */}
+                {paketler.length > 0 && (
+                  <div className="mt-2 space-y-1.5">
+                    {paketler.map((p) => {
+                      const borc = p.ucret - p.odenen_tutar;
+                      return (
+                        <div key={p.id} className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                            <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap">
+                              {p.kalan_seans}/{p.toplam_seans} {p.hizmetler?.adi}
+                            </span>
+                            {borc > 0 && (
+                              <span className="bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                                {borc.toLocaleString('tr-TR')} TL borç
+                              </span>
+                            )}
+                          </div>
+                          {borc > 0 && (
+                            <button
+                              onClick={() =>
+                                setOdeme({
+                                  paket: p,
+                                  musteri: { id: m.id, adi: m.adi },
+                                })
+                              }
+                              className="text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full flex items-center gap-1 active:scale-95"
+                            >
+                              <CreditCard className="w-3 h-3" />
+                              Öde
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
 
-                  className="w-full flex items-center justify-between bg-amber-50 border border-amber-200 px-3 py-2 rounded-xl hover:bg-amber-100 active:scale-95 transition"
-                  >
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="w-4 h-4 text-amber-700" />
-                      <span className="text-[12px] font-extrabold text-amber-800">
-                        {borc.toLocaleString('tr-TR')} TL Borç
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-extrabold bg-amber-600 text-white px-2.5 py-1 rounded-full">
-                      Ödeme Tahsil Et →
+                {/* Toplam borç (tüm paketler) */}
+                {paketler.length > 0 && toplam > 0 && (
+                  <div className="mt-2 pt-2 border-t border-slate-100 flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-slate-500">Toplam Borç</span>
+                    <span className="text-[13px] font-extrabold text-rose-600">
+                      {toplam.toLocaleString('tr-TR')} TL
                     </span>
-                  </button>
+                  </div>
                 )}
               </div>
             );
