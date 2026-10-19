@@ -12,14 +12,12 @@ export default function CalendarView() {
   const [aktifSekme, setAktifSekme] = useState('takvim');
   const [secilenTarih, setSecilenTarih] = useState(new Date().toISOString().slice(0, 10));
   const [secilenEgitmen, setSecilenEgitmen] = useState('tumu');
-  const [randevular, setRandevular] = useState([]);
   const [egitmenler, setEgitmenler] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState('Eğitmen');
+  const [userId, setUserId] = useState(null);
   const [modalAcik, setModalAcik] = useState(false);
   const [secilenRandevu, setSecilenRandevu] = useState(null);
   const [detayAcik, setDetayAcik] = useState(false);
-  const [userRole, setUserRole] = useState('Eğitmen');
-  const [userId, setUserId] = useState(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -32,7 +30,6 @@ export default function CalendarView() {
           .maybeSingle();
         if (prof) {
           setUserRole(prof.rol);
-          // Eğitmen ise otomatik kendi seanslarını seç
           if (prof.rol === 'Eğitmen') {
             setSecilenEgitmen(data.user.id);
           }
@@ -42,10 +39,11 @@ export default function CalendarView() {
   }, []);
 
   const veriGetir = useCallback(async () => {
-    setLoading(true);
-    const { data: eg } = await supabase.from('kullanicilar').select('id,adi,rol').order('adi');
+    const { data: eg } = await supabase
+      .from('kullanicilar')
+      .select('id,adi,rol')
+      .order('adi');
     if (eg) setEgitmenler(eg);
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -55,7 +53,6 @@ export default function CalendarView() {
   // Yönetici her zaman ilk sırada
   const siraliEgitmenler = useMemo(() => {
     if (!Array.isArray(egitmenler) || egitmenler.length === 0) return [];
-    // Önce yöneticileri, sonra eğitmenleri sırala
     const adminler = egitmenler.filter((e) => e.rol === 'Admin');
     const egitmenlerOnly = egitmenler.filter((e) => e.rol !== 'Admin');
     return [...adminler, ...egitmenlerOnly];
@@ -80,10 +77,7 @@ export default function CalendarView() {
       </div>
 
       {(aktifSekme === 'takvim' || aktifSekme === 'ajanda') && (
-        <WeekHeader
-          secilenTarih={secilenTarih}
-          setSecilenTarih={setSecilenTarih}
-        />
+        <WeekHeader secilenTarih={secilenTarih} setSecilenTarih={setSecilenTarih} />
       )}
 
       <div className="flex-1 overflow-hidden">
@@ -91,7 +85,7 @@ export default function CalendarView() {
           <TakvimView
             secilenTarih={secilenTarih}
             setSecilenTarih={setSecilenTarih}
-            egitmenler={egitmenler}
+            egitmenler={siraliEgitmenler}
             userId={userId}
             userRole={userRole}
             onRandevuClick={(r) => {
