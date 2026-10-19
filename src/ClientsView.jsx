@@ -330,21 +330,3 @@ export default function ClientsView({ userRole }) {
   );
 }
 
-function RandevuDetayWrapper({ randevu, onClose, onSuccess }) {
-  const [egitmenler, setEgitmenler] = useState([]);
-  useEffect(() => {
-    supabase.from('kullanicilar').select('id,adi').order('adi').then(({ data }) => {
-      if (data) setEgitmenler(data);
-    });
-  }, []);
-  return (
-    <RandevuDetayInline
-      randevu={randevu}
-      egitmenler={egitmenler}
-      onClose={onClose}
-      onSuccess={onSuccess}
-    />
-  );
-}
-
-import RandevuDetailModal from './RandevuDetailModal.jsx';
