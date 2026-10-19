@@ -28,7 +28,7 @@ export default function RaporView() {
       });
       const toplamCiro = (allPaketler || []).reduce((s, p) => s + parseFloat(p.odenen_tutar || 0), 0);
       let bugun = 0, buAy = 0;
-      if (odemeler) odemeler.forEach((o) => { const t = new Date(o.tarih); if (t >= bugunStart) bugun += parseFloat(o.tutar || 0); if (t >= ayStart) buAy += parseFloat(o.tutar || 0); });
+      if (odemeler) (odemeler || []).forEach((o) => { const t = new Date(o.tarih); if (t >= bugunStart) bugun += parseFloat(o.tutar || 0); if (t >= ayStart) buAy += parseFloat(o.tutar || 0); });
       setStats({ bugun, buAy, toplamCiro, toplamAlacak, aktifPaket: aktif, borcluPaket: borclu });
       setAlacaklilar(paketler.filter((p) => p.ucret - p.odenen_tutar > 0).sort((a, b) => (b.ucret - b.odenen_tutar) - (a.ucret - a.odenen_tutar)).slice(0, 15));
       setSonOdemeler(odemeler || []);

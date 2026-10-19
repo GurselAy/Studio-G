@@ -54,7 +54,7 @@ export default function CalendarView() {
 
   // Eğitmen ise otomatik kendi kolonu ilk sırada
   const siraliEgitmenler = useMemo(() => {
-    const list = [...egitmenler];
+    const list = Array.isArray(egitmenler) ? [...egitmenler] : [];
     if (userRole === 'Eğitmen' && userId) {
       list.sort((a, b) => (a.id === userId ? -1 : b.id === userId ? 1 : 0));
     }

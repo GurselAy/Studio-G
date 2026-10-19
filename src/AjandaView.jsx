@@ -118,7 +118,7 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
   // Grupla (grup_id bazlı)
   const grouped = useMemo(() => {
     const g = {};
-    randevular.forEach((r) => {
+    (randevular || []).forEach((r) => {
       const k = r.grup_id || `tek_${r.id}`;
       if (!g[k]) g[k] = [];
       g[k].push(r);

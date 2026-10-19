@@ -23,11 +23,11 @@ export default function IstatistikView() {
       const iptal = randevular.filter((r) => r.durum === 'iptal edildi').length;
       const plan = randevular.filter((r) => r.durum === 'planlandı').length;
       const week = [0, 0, 0, 0, 0, 0, 0];
-      randevular.forEach((r) => { const d = new Date(r.baslangic_saati).getDay(); const idx = d === 0 ? 6 : d - 1; week[idx]++; });
+      (randevular || []).forEach((r) => { const d = new Date(r.baslangic_saati).getDay(); const idx = d === 0 ? 6 : d - 1; week[idx]++; });
       const maxWeek = Math.max(...week, 1);
-      const hizmetMap = {}; randevular.forEach((r) => { const ad = r.hizmetler?.adi || 'Diğer'; hizmetMap[ad] = (hizmetMap[ad] || 0) + 1; });
+      const hizmetMap = {}; (randevular || []).forEach((r) => { const ad = r.hizmetler?.adi || 'Diğer'; hizmetMap[ad] = (hizmetMap[ad] || 0) + 1; });
       const hizmetList = Object.entries(hizmetMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
-      const egitmenMap = {}; randevular.forEach((r) => { const ad = r.kullanicilar?.adi || 'Bilinmeyen'; egitmenMap[ad] = (egitmenMap[ad] || 0) + 1; });
+      const egitmenMap = {}; (randevular || []).forEach((r) => { const ad = r.kullanicilar?.adi || 'Bilinmeyen'; egitmenMap[ad] = (egitmenMap[ad] || 0) + 1; });
       const egitmenList = Object.entries(egitmenMap).sort((a, b) => b[1] - a[1]);
       const last7 = []; for (let i = 6; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); const ds = d.toISOString().slice(0, 10); const dayOdemeler = (odemeler || []).filter((o) => o.tarih && o.tarih.slice(0, 10) === ds); const sum = dayOdemeler.reduce((s, o) => s + parseFloat(o.tutar), 0); last7.push({ date: ds.slice(5), sum }); }
       const maxCiro = Math.max(...last7.map((x) => x.sum), 1);

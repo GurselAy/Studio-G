@@ -37,8 +37,8 @@ export default function TakvimView({ secilenTarih, setSecilenTarih, egitmenler, 
 
   const grouped = useMemo(() => {
     const m = {};
-    egitmenler.forEach((e) => (m[e.id] = {}));
-    randevular.forEach((r) => {
+    (egitmenler || []).forEach((e) => (m[e.id] = {}));
+    (randevular || []).forEach((r) => {
       if (!m[r.egitmen_id]) m[r.egitmen_id] = {};
       const k = r.grup_id || `${r.egitmen_id}_${new Date(r.baslangic_saati).getTime()}`;
       if (!m[r.egitmen_id][k]) m[r.egitmen_id][k] = [];
