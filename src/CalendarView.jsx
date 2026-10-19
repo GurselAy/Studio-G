@@ -14,6 +14,7 @@ export default function CalendarView() {
   const [secilenEgitmen, setSecilenEgitmen] = useState('tumu');
   const [egitmenler, setEgitmenler] = useState([]);
   const [userRole, setUserRole] = useState('Eğitmen');
+  const [userName, setUserName] = useState('');
   const [userId, setUserId] = useState(null);
   const [modalAcik, setModalAcik] = useState(false);
   const [secilenRandevu, setSecilenRandevu] = useState(null);
@@ -30,6 +31,7 @@ export default function CalendarView() {
           .maybeSingle();
         if (prof) {
           setUserRole(prof.rol);
+          setUserName(prof.adi);
           if (prof.rol === 'Eğitmen') {
             setSecilenEgitmen(data.user.id);
           }
@@ -50,7 +52,6 @@ export default function CalendarView() {
     veriGetir();
   }, [veriGetir]);
 
-  // Yönetici her zaman ilk sırada
   const siraliEgitmenler = useMemo(() => {
     if (!Array.isArray(egitmenler) || egitmenler.length === 0) return [];
     const adminler = egitmenler.filter((e) => e.rol === 'Admin');
@@ -64,9 +65,6 @@ export default function CalendarView() {
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 bg-gradient-to-br from-[#7c3aed] to-[#4f46e5] rounded-xl flex items-center justify-center text-white font-extrabold">G</div>
           <span className="font-extrabold text-[16px]">Studio G</span>
-          <span className="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded-full ml-2">
-            {userRole === 'Admin' ? 'Yönetici' : 'Eğitmen'}
-          </span>
         </div>
         <button
           onClick={() => setModalAcik(true)}
@@ -77,7 +75,7 @@ export default function CalendarView() {
       </div>
 
       {(aktifSekme === 'takvim' || aktifSekme === 'ajanda') && (
-        <WeekHeader secilenTarih={secilenTarih} setSecilenTarih={setSecilenTarih} />
+        <WeekHeader secilenTarih={secilenTarih} setSecilenTarih={setSecilenTarih} userName={userName} />
       )}
 
       <div className="flex-1 overflow-hidden">
@@ -138,7 +136,7 @@ export default function CalendarView() {
   );
 }
 
-function WeekHeader({ secilenTarih, setSecilenTarih }) {
+function WeekHeader({ secilenTarih, setSecilenTarih, userName }) {
   const todayStr = new Date().toISOString().slice(0, 10);
   const getWeekDays = (s) => {
     const date = new Date(s + 'T12:00:00');
@@ -166,7 +164,7 @@ function WeekHeader({ secilenTarih, setSecilenTarih }) {
     <div className="bg-white border-b">
       <div className="px-3 pt-2">
         <div className="text-[13px] font-bold text-slate-500">
-          İyi günler, <span className="text-slate-900 font-extrabold">Yönetici</span>
+          İyi günler, <span className="text-slate-900 font-extrabold">{userName || 'Kullanıcı'}</span>
         </div>
         <div className="flex justify-between items-center mt-1">
           <span className="text-[13px] font-extrabold capitalize">
