@@ -11,6 +11,18 @@ function genUUID() {
   });
 }
 
+// Türkiye saatine göre ISO oluştur (UTC'ye dönüşmeden)
+// Input: "2026-10-19", "10:00" → Türkiye saati 10:00
+// Çıktı: "2026-10-19T07:00:00.000Z" (DB UTC olarak saklar, gösterimde doğru)
+function localToUTCISO(tarih, saat) {
+  const [y, m, d] = tarih.split('-').map(Number);
+  const [sh, sm] = saat.split(':').map(Number);
+  // Yeni Date objesi oluştur (local timezone kullanır)
+  const localDate = new Date(y, m - 1, d, sh, sm, 0);
+  // toISOString() otomatik olarak UTC'ye çevirir
+  return localDate.toISOString();
+}
+
 export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secilenTarih }) {
   const [musteriler, setMusteriler] = useState([]);
   const [hizmetler, setHizmetler] = useState([]);
@@ -122,10 +134,14 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
       const toplam = parseInt(seansSayisi) || 1;
       const proposed = [];
       for (let i = 0; i < toplam; i++) {
-        const bas = new Date(`${tarih}T${saat}:00`);
-        bas.setDate(bas.getDate() + i * 7);
-        const bit = new Date(bas.getTime() + sure * 60000);
-        proposed.push({ start: bas, end: bit });
+        // YEREL TARIH OLUŞTUR → UTC'ye çevir
+        const [y, m, d] = tarih.split('-').map(Number);
+        const [sh, sm] = saat.split(':').map(Number);
+        const localDate = new Date(y, m - 1, d + i * 7, sh, sm, 0);
+        const basStr = localDate.toISOString();
+        const endDate = new Date(localDate.getTime() + sure * 60000);
+        const endStr = endDate.toISOString();
+        proposed.push({ start: localDate, end: endDate, basStr, endStr });
       }
 
       // Çakışma kontrolü
@@ -207,8 +223,8 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
             musteri_id: mid,
             egitmen_id: secilenEgitmen,
             hizmet_id: secilenHizmet,
-            baslangic_saati: p.start.toISOString(),
-            bitis_saati: p.end.toISOString(),
+            baslangic_saati: p.basStr,
+            bitis_saati: p.endStr,
             durum: 'planlandı',
             yinelenen: toplam > 1,
             tekrar_sayisi: toplam > 1 ? toplam : null,
@@ -378,7 +394,7 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
 
           <div className="bg-indigo-50/60 p-3 rounded-xl border border-indigo-100 space-y-2">
             <div>
-              <label className="text-[11px] font-extrabold text-slate-900">Toplam Seans Sayısı (numeric)</label>
+              <label className="text-[11px] font-extrabold text-slate-900">Toplam Seans (numeric)</label>
               <input
                 type="tel"
                 inputMode="numeric"
@@ -424,10 +440,10 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
             </div>
             <p className="text-[10px] font-bold text-indigo-700 bg-white p-2 rounded-lg border">
               Not: Önümüzdeki {seansSayisi} hafta boyunca her{' '}
-              {new Date(tarih).toLocaleDateString('tr-TR', { weekday: 'long' })} saat {saat}'e tüm seanslar oluşturulacak.
+              {new Date(tarih + 'T00:00:00').toLocaleDateString('tr-TR', { weekday: 'long' })} saat {saat}'e tüm seanslar oluşturulacak.
             </p>
             <p className="text-[10px] font-bold text-emerald-700 bg-emerald-50 p-2 rounded-lg border border-emerald-200">
-              ✓ Eğitmen seans ücreti otomatik hesaplanır (eğitmen_hizmet_ucretleri tablosundan)
+              ✓ Eğitmen seans ücreti otomatik (eğitmen_hizmet_ucretleri tablosundan)
             </p>
           </div>
 

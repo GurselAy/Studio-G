@@ -10,7 +10,7 @@ import { CalendarIcon, Users, Clock, Plus, ChevronLeft, ChevronRight, UserCircle
 
 export default function CalendarView() {
   const [aktifSekme, setAktifSekme] = useState('takvim');
-  const [secilenTarih, setSecilenTarih] = useState(new Date().toISOString().split('T')[0]);
+  const [secilenTarih, setSecilenTarih] = useState(new Date().toISOString().slice(0, 10));
   const [secilenEgitmen, setSecilenEgitmen] = useState('tumu');
   const [randevular, setRandevular] = useState([]);
   const [egitmenler, setEgitmenler] = useState([]);
@@ -20,7 +20,6 @@ export default function CalendarView() {
   const [detayAcik, setDetayAcik] = useState(false);
   const [userRole, setUserRole] = useState('Eğitmen');
   const [userId, setUserId] = useState(null);
-  const [userName, setUserName] = useState('');
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -30,10 +29,13 @@ export default function CalendarView() {
           .from('kullanicilar')
           .select('rol,adi')
           .eq('id', data.user.id)
-          .single();
+          .maybeSingle();
         if (prof) {
           setUserRole(prof.rol);
-          setUserName(prof.adi);
+          // Eğitmen ise otomatik kendi seanslarını seç
+          if (prof.rol === 'Eğitmen') {
+            setSecilenEgitmen(data.user.id);
+          }
         }
       }
     });
@@ -41,30 +43,16 @@ export default function CalendarView() {
 
   const veriGetir = useCallback(async () => {
     setLoading(true);
-    const { data: eg } = await supabase.from('kullanicilar').select('id,adi').order('adi');
+    const { data: eg } = await supabase.from('kullanicilar').select('id,adi,rol').order('adi');
     if (eg) setEgitmenler(eg);
-
-    let q = supabase
-      .from('randevular')
-      .select(
-        `id,musteri_id,hizmet_id,egitmen_id,baslangic_saati,bitis_saati,durum,egitmen_ucret,grup_id,
-         musteriler(adi,telefon),hizmetler(adi,tur,katilim_sayisi),kullanicilar(adi)`,
-      )
-      .gte('baslangic_saati', `${secilenTarih}T00:00:00`)
-      .lte('baslangic_saati', `${secilenTarih}T23:59:59`)
-      .order('baslangic_saati');
-
-    if (secilenEgitmen !== 'tumu') q = q.eq('egitmen_id', secilenEgitmen);
-    const { data } = await q;
-    if (data) setRandevular(data);
     setLoading(false);
-  }, [secilenTarih, secilenEgitmen]);
+  }, []);
 
   useEffect(() => {
     veriGetir();
   }, [veriGetir]);
 
-  // Egitmen ise otomatik filtrele + takvimde ilk siraya al
+  // Eğitmen ise otomatik kendi kolonu ilk sırada
   const siraliEgitmenler = useMemo(() => {
     const list = [...egitmenler];
     if (userRole === 'Eğitmen' && userId) {
@@ -73,35 +61,15 @@ export default function CalendarView() {
     return list;
   }, [egitmenler, userRole, userId]);
 
-  // Filtreyi uygula (egitmen kendi disindakileri gormesin)
-  const filtreliRandevular = useMemo(() => {
-    if (userRole === 'Eğitmen' && userId) {
-      return randevular.filter((r) => r.egitmen_id === userId);
-    }
-    return randevular;
-  }, [randevular, userRole, userId]);
-
-  const takvimData = useMemo(
-    () => filtreliRandevular.filter((r) => r.durum === 'planlandı'),
-    [filtreliRandevular],
-  );
-  const ajandaData = useMemo(
-    () =>
-      userRole === 'Admin'
-        ? filtreliRandevular
-        : filtreliRandevular.filter((r) => r.durum !== 'tamamlandı'),
-    [filtreliRandevular, userRole],
-  );
-
   return (
-    <div className="flex flex-col h-screen bg-[#f6f5ff] max-w-md mx-auto shadow-2xl overflow-hidden">
+    <div className="flex flex-col h-screen bg-slate-50 max-w-md mx-auto shadow-2xl overflow-hidden">
       <div className="bg-white px-4 py-3 flex justify-between items-center border-b">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-gradient-to-br from-[#7c3aed] to-[#4f46e5] rounded-xl flex items-center justify-center text-white font-extrabold">
-            G
-          </div>
+          <div className="w-8 h-8 bg-gradient-to-br from-[#7c3aed] to-[#4f46e5] rounded-xl flex items-center justify-center text-white font-extrabold">G</div>
           <span className="font-extrabold text-[16px]">Studio G</span>
-          <span className="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded-full ml-2">{userRole}</span>
+          <span className="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded-full ml-2">
+            {userRole === 'Admin' ? 'Yönetici' : 'Eğitmen'}
+          </span>
         </div>
         <button
           onClick={() => setModalAcik(true)}
@@ -124,8 +92,8 @@ export default function CalendarView() {
             secilenTarih={secilenTarih}
             setSecilenTarih={setSecilenTarih}
             egitmenler={siraliEgitmenler}
-            randevular={takvimData}
             userId={userId}
+            userRole={userRole}
             onRandevuClick={(r) => {
               setSecilenRandevu(r);
               setDetayAcik(true);
@@ -138,10 +106,9 @@ export default function CalendarView() {
             setSecilenTarih={setSecilenTarih}
             secilenEgitmen={secilenEgitmen}
             setSecilenEgitmen={setSecilenEgitmen}
-            egitmenler={egitmenler}
-            randevular={ajandaData}
-            loading={loading}
-            veriGetir={veriGetir}
+            egitmenler={siraliEgitmenler}
+            userId={userId}
+            userRole={userRole}
             onRandevuClick={(r) => {
               setSecilenRandevu(r);
               setDetayAcik(true);
@@ -156,7 +123,7 @@ export default function CalendarView() {
         <NewAppointmentModal
           isOpen={modalAcik}
           onClose={() => setModalAcik(false)}
-          onSuccess={veriGetir}
+          onSuccess={() => {}}
           secilenTarih={secilenTarih}
         />
       )}
@@ -168,7 +135,6 @@ export default function CalendarView() {
             setSecilenRandevu(null);
           }}
           randevu={secilenRandevu}
-          onSuccess={veriGetir}
           egitmenler={egitmenler}
         />
       )}
@@ -179,9 +145,9 @@ export default function CalendarView() {
 }
 
 function WeekHeader({ secilenTarih, setSecilenTarih }) {
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = new Date().toISOString().slice(0, 10);
   const getWeekDays = (s) => {
-    const date = new Date(s);
+    const date = new Date(s + 'T12:00:00');
     const diff = date.getDay() === 0 ? -6 : 1 - date.getDay();
     const mon = new Date(date);
     mon.setDate(date.getDate() + diff);
@@ -193,20 +159,20 @@ function WeekHeader({ secilenTarih, setSecilenTarih }) {
   };
   const weekDays = getWeekDays(secilenTarih);
   const weekLabels = ['PZT', 'SAL', 'ÇAR', 'PER', 'CUM', 'CMT', 'PAZ'];
-  const d = new Date(secilenTarih);
+  const d = new Date(secilenTarih + 'T12:00:00');
   const gunAy = d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
   const haftagun = d.toLocaleDateString('tr-TR', { weekday: 'long' });
   const tam = d.toLocaleDateString('tr-TR');
   const tarihArttir = (g) => {
-    const dt = new Date(secilenTarih);
+    const dt = new Date(secilenTarih + 'T12:00:00');
     dt.setDate(dt.getDate() + g);
-    setSecilenTarih(dt.toISOString().split('T')[0]);
+    setSecilenTarih(dt.toISOString().slice(0, 10));
   };
   return (
     <div className="bg-white border-b">
       <div className="px-3 pt-2">
         <div className="text-[13px] font-bold text-slate-500">
-          İyi günler, <span className="text-slate-900 font-extrabold">{/* userName parenttan */}Yönetici</span>
+          İyi günler, <span className="text-slate-900 font-extrabold">Yönetici</span>
         </div>
         <div className="flex justify-between items-center mt-1">
           <span className="text-[13px] font-extrabold capitalize">
@@ -236,7 +202,7 @@ function WeekHeader({ secilenTarih, setSecilenTarih }) {
       </div>
       <div className="px-2 py-2.5 grid grid-cols-7 gap-1">
         {weekDays.map((d, i) => {
-          const iso = d.toISOString().split('T')[0];
+          const iso = d.toISOString().slice(0, 10);
           return (
             <button
               key={i}
