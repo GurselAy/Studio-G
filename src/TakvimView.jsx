@@ -9,24 +9,6 @@ export default function TakvimView({
   userRole,
   onRandevuClick,
 }) {
-  // useEffect ile sırala - her egitmenler/userId değişiminde yeniden hesapla
-  const [siraliEgitmenler, setSiraliEgitmenler] = useState([]);
-
-  useEffect(() => {
-    if (!Array.isArray(egitmenler) || egitmenler.length === 0) {
-      setSiraliEgitmenler([]);
-      return;
-    }
-    const list = [...egitmenler];
-    if (userRole === 'Eğitmen' && userId) {
-      const filtered = list.filter((e) => e.id !== userId);
-      const me = list.find((e) => e.id === userId);
-      setSiraliEgitmenler(me ? [me, ...filtered] : list);
-    } else {
-      setSiraliEgitmenler(list);
-    }
-  }, [egitmenler, userId, userRole]);
-
   const start = 8;
   const end = 22;
   const slot = 30;
@@ -44,7 +26,7 @@ export default function TakvimView({
   const [randevular, setRandevular] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Eğer eğitmen ise, otomatik olarak sadece kendi eğitmen_id'sini kullan
+  // Eğer eğitmen ise, sadece kendi eğitmen_id'sini kullan
   const filtrelenecekEgitmenId = useMemo(() => {
     if (userRole === 'Eğitmen' && userId) {
       return userId;
@@ -96,7 +78,7 @@ export default function TakvimView({
 
   const grouped = useMemo(() => {
     const m = {};
-    siraliEgitmenler.forEach((e) => (m[e.id] = {}));
+    (egitmenler || []).forEach((e) => (m[e.id] = {}));
     (randevular || []).forEach((r) => {
       if (!m[r.egitmen_id]) m[r.egitmen_id] = {};
       const k = r.grup_id || `${r.egitmen_id}_${new Date(r.baslangic_saati).getTime()}`;
@@ -104,21 +86,20 @@ export default function TakvimView({
       m[r.egitmen_id][k].push(r);
     });
     return m;
-  }, [siraliEgitmenler, randevular]);
+  }, [egitmenler, randevular]);
 
   return (
     <div className="flex flex-col h-full bg-[#fffef5] overflow-hidden select-none" onTouchStart={onStart} onTouchEnd={onEnd}>
       <div className="flex border-b bg-white">
         <div className="w-[52px] min-w-[52px] border-r flex items-center justify-center text-[9px] font-extrabold">SAAT</div>
         <div className="flex-1 flex">
-          {siraliEgitmenler.map((e, i) => (
+          {(egitmenler || []).map((e, i) => (
             <div
               key={e.id}
               className="flex-1 min-w-0 text-center py-2 text-[11px] font-extrabold text-white truncate"
               style={{ backgroundColor: colors[i % colors.length] }}
             >
               {e.adi}
-              {userId === e.id ? ' (Siz)' : ''}
             </div>
           ))}
         </div>
@@ -136,7 +117,7 @@ export default function TakvimView({
               ))}
             </div>
             <div className="flex-1 flex relative">
-              {siraliEgitmenler.map((egt, idx) => (
+              {(egitmenler || []).map((egt, idx) => (
                 <div key={egt.id} className="flex-1 min-w-0 relative border-r bg-[#fffef5]">
                   {slots.map((_, i) => (
                     <div key={i} className="absolute left-0 right-0 border-b" style={{ top: i * row, height: row }} />

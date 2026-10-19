@@ -54,11 +54,13 @@ export default function CalendarView() {
 
   // Eğitmen ise otomatik kendi kolonu ilk sırada
   const siraliEgitmenler = useMemo(() => {
-    const list = Array.isArray(egitmenler) ? [...egitmenler] : [];
-    if (userRole === 'Eğitmen' && userId) {
-      list.sort((a, b) => (a.id === userId ? -1 : b.id === userId ? 1 : 0));
+    if (!Array.isArray(egitmenler) || egitmenler.length === 0) return [];
+    const me = egitmenler.find((e) => e.id === userId);
+    const others = egitmenler.filter((e) => e.id !== userId);
+    if (userRole === 'Eğitmen' && me) {
+      return [me, ...others];
     }
-    return list;
+    return egitmenler;
   }, [egitmenler, userRole, userId]);
 
   return (
