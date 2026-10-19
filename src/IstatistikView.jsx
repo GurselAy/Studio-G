@@ -4,6 +4,7 @@ import { supabase } from './supabaseClient';
 export default function IstatistikView() {
   const [ay, setAy] = useState(new Date().toISOString().slice(0, 7));
   const [stats, setStats] = useState(null);
+  const [toplamGiderler, setToplamGiderler] = useState({ genel: 0, egitmen: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { getir(); }, [ay]);
@@ -14,7 +15,7 @@ export default function IstatistikView() {
     const end = new Date(start);
     end.setMonth(end.getMonth() + 1);
     // Paralel sorgular
-    const [randevuRes, paketRes, odemeRes, kazancRes] = await Promise.all([
+    const [randevuRes, paketRes, odemeRes, kazancRes, giderRes] = await Promise.all([
       supabase
         .from('randevular')
         .select('*, hizmetler(adi, tur), kullanicilar(adi)')
@@ -35,11 +36,19 @@ export default function IstatistikView() {
         .select('*, kullanicilar!egitmen_kazanc_hareketleri_egitmen_id_fkey(adi)')
         .gte('tarih', start.toISOString())
         .lt('tarih', end.toISOString()),
+      // GENEL GİDERLER
+      supabase
+        .from('isletme_giderleri')
+        .select('tutar, kategori, tarih')
+        .gte('tarih', ay + '-01')
+        .lt('tarih', end.toISOString().slice(0, 10)),
     ]);
     const randevular = randevuRes.data;
     const paketler = paketRes.data;
     const odemeler = odemeRes.data;
     const kazanc = kazancRes.data;
+    const genelGiderler = giderRes.data || [];
+
     if (randevular) {
       const toplam = randevular.length;
       const tamam = randevular.filter((r) => r.durum === 'tamamlandı').length;
@@ -77,15 +86,25 @@ export default function IstatistikView() {
       const maxCiro = Math.max(...last7.map((x) => x.sum), 1);
       const ciro = (odemeler || []).reduce((s, o) => s + parseFloat(o.tutar || 0), 0);
       const hakedis = (kazanc || []).reduce((s, k) => s + parseFloat(k.tutar || 0), 0);
+
+      // GENEL GİDERLERİ HESAPLA
+      const genelGiderToplam = genelGiderler.reduce((s, g) => s + parseFloat(g.tutar || 0), 0);
+      setToplamGiderler({ genel: genelGiderToplam, egitmen: hakedis });
+
       setStats({
         toplam, tamam, iptal, plan, week, maxWeek,
         hizmetList, egitmenList, last7, maxCiro, ciro, hakedis,
         paketSayisi: paketler?.length || 0,
+        toplamGider: genelGiderToplam + hakedis,
       });
     }
     setLoading(false);
   };
+
   if (loading || !stats) return <div className="p-10 text-center text-xs font-bold text-slate-400">İstatistik yükleniyor...</div>;
+
+  const netKar = stats.ciro - stats.toplamGider;
+
   return (
     <div className="flex flex-col h-full bg-slate-50 overflow-y-auto p-3 space-y-3">
       <div className="bg-white p-3 rounded-xl border flex justify-between items-center">
@@ -97,7 +116,9 @@ export default function IstatistikView() {
           className="px-3 py-1.5 border rounded-xl bg-slate-50 text-xs font-bold"
         />
       </div>
-      <div className="grid grid-cols-3 gap-2">
+
+      {/* Üst Kartlar - 4'lü grid */}
+      <div className="grid grid-cols-2 gap-2">
         <div className="bg-white p-3 rounded-xl border text-center">
           <div className="text-[20px] font-extrabold text-slate-900">{stats.toplam}</div>
           <div className="text-[10px] font-bold text-slate-500">TOPLAM SEANS</div>
@@ -110,7 +131,31 @@ export default function IstatistikView() {
           <div className="text-[20px] font-extrabold text-[#5b46f5]">{stats.ciro.toLocaleString('tr-TR')} TL</div>
           <div className="text-[10px] font-bold text-[#5b46f5]">CİRO</div>
         </div>
+        <div className="bg-rose-50 p-3 rounded-xl border border-rose-200 text-center">
+          <div className="text-[20px] font-extrabold text-rose-700">{stats.toplamGider.toLocaleString('tr-TR')} TL</div>
+          <div className="text-[10px] font-bold text-rose-700">TOPLAM GİDER</div>
+        </div>
       </div>
+
+      {/* Net Kar/Zarar Kartı */}
+      <div className={`${netKar >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'} p-3 rounded-xl border shadow-sm`}>
+        <div className="flex justify-between items-center">
+          <div>
+            <div className="text-[10px] font-bold text-slate-500">
+              {netKar >= 0 ? 'NET KÂR' : 'NET ZARAR'} (bu ay)
+            </div>
+            <div className={`text-[18px] font-extrabold ${netKar >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+              {netKar.toLocaleString('tr-TR')} TL
+            </div>
+          </div>
+          <div className="text-right text-[10px] font-bold text-slate-500">
+            <div>Ciro: {stats.ciro.toLocaleString('tr-TR')} TL</div>
+            <div>Gider: {stats.toplamGider.toLocaleString('tr-TR')} TL</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Haftalık Doluluk */}
       <div className="bg-white p-3 rounded-xl border">
         <h3 className="text-[12px] font-extrabold text-slate-900 mb-3">Haftalık Doluluk</h3>
         <div className="flex items-end gap-1.5 h-[80px]">
@@ -130,36 +175,50 @@ export default function IstatistikView() {
           ))}
         </div>
       </div>
+
+      {/* Hizmet Dağılımı */}
       <div className="bg-white p-3 rounded-xl border">
         <h3 className="text-[12px] font-extrabold text-slate-900 mb-2">Hizmet Dağılımı</h3>
-        {stats.hizmetList.map(([ad, sayi], i) => {
-          const max = stats.hizmetList[0][1];
-          return (
-            <div key={i} className="flex items-center gap-2 py-1.5">
-              <span className="text-[11px] font-bold text-slate-700 w-[90px] truncate text-left">{ad}</span>
-              <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-[#5b46f5]" style={{ width: `${(sayi / max) * 100}%` }}></div>
+        {stats.hizmetList.length === 0 ? (
+          <div className="text-[11px] font-bold text-slate-400">Veri yok</div>
+        ) : (
+          stats.hizmetList.map(([ad, sayi], i) => {
+            const max = stats.hizmetList[0][1];
+            return (
+              <div key={i} className="flex items-center gap-2 py-1.5">
+                <span className="text-[11px] font-bold text-slate-700 w-[90px] truncate text-left">{ad}</span>
+                <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-[#5b46f5]" style={{ width: `${(sayi / max) * 100}%` }}></div>
+                </div>
+                <span className="text-[11px] font-extrabold text-slate-900 w-6 text-right">{sayi}</span>
               </div>
-              <span className="text-[11px] font-extrabold text-slate-900 w-6 text-right">{sayi}</span>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
+
+      {/* Eğitmen Performans */}
       <div className="bg-white p-3 rounded-xl border">
         <h3 className="text-[12px] font-extrabold text-slate-900 mb-2">Eğitmen Performans</h3>
-        {stats.egitmenList.map(([ad, sayi], i) => {
-          const max = stats.egitmenList[0]?.[1] || 1;
-          return (
-            <div key={i} className="flex items-center gap-2 py-1.5">
-              <span className="text-[11px] font-bold w-[80px] truncate text-left">{ad}</span>
-              <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-500" style={{ width: `${(sayi / max) * 100}%` }}></div>
+        {stats.egitmenList.length === 0 ? (
+          <div className="text-[11px] font-bold text-slate-400">Veri yok</div>
+        ) : (
+          stats.egitmenList.map(([ad, sayi], i) => {
+            const max = stats.egitmenList[0]?.[1] || 1;
+            return (
+              <div key={i} className="flex items-center gap-2 py-1.5">
+                <span className="text-[11px] font-bold w-[80px] truncate text-left">{ad}</span>
+                <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-500" style={{ width: `${(sayi / max) * 100}%` }}></div>
+                </div>
+                <span className="text-[11px] font-extrabold w-6 text-right">{sayi}</span>
               </div>
-              <span className="text-[11px] font-extrabold w-6 text-right">{sayi}</span>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
+
+      {/* Son 7 Gün Tahsilat */}
       <div className="bg-white p-3 rounded-xl border">
         <h3 className="text-[12px] font-extrabold text-slate-900 mb-3">Son 7 Gün Tahsilat</h3>
         <div className="flex items-end gap-1 h-[70px]">
@@ -177,6 +236,8 @@ export default function IstatistikView() {
           ))}
         </div>
       </div>
+
+      {/* Alt Kartlar - Paket + Hakediş */}
       <div className="grid grid-cols-2 gap-2 pb-4">
         <div className="bg-white p-3 rounded-xl border">
           <div className="text-[10px] font-bold text-slate-500">PAKET SATIŞ</div>

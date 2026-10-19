@@ -172,7 +172,7 @@ export default function DigerView({ userRole }) {
             <span className="text-[14px] font-extrabold text-red-600">Çıkış Yap</span>
           </button>
         </div>
-        <div className="text-center text-[11px] font-bold text-slate-300 py-2">Studio G v2.0.0</div>
+        <div className="text-center text-[11px] font-bold text-slate-300 py-2">Studio G v1.0.0</div>
       </div>
     </div>
   );
