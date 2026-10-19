@@ -10,8 +10,12 @@ export default function ClientsView({ userRole }) {
   const [filter, setFilter] = useState('tumu');
   const [loading, setLoading] = useState(true);
   const [musteriModal, setMusteriModal] = useState(false);
-  const [odemePaket, setOdemePaket] = useState(null);
-  const [odemeMusteri, setOdemeMusteri] = useState(null);
+  
+  const [odeme, setOdeme] = useState(null); // { paket, musteri }
+  // const [odemePaket, setOdemePaket] = useState(null);
+  // const [odemeMusteri, setOdemeMusteri] = useState(null);
+
+
   const [yeniAd, setYeniAd] = useState('');
   const [yeniTel, setYeniTel] = useState('');
 
@@ -212,20 +216,33 @@ export default function ClientsView({ userRole }) {
                   </div>
                 </div>
 
-                {/* Borç bilgisi ve Ödeme butonu - AKTİF */}
-                {borc > 0 && (
-                  <button
-                    onClick={() => {
-                      // Borçlu paketlerden ilkini aç
-                      const borcluPaket = m.musteri_paketleri?.find(
-                        (p) => parseFloat(p.ucret || 0) - parseFloat(p.odenen_tutar || 0) > 0
-                      );
-                      if (borcluPaket) {
-                        setOdemePaket(borcluPaket);
-                        setOdemeMusteri({ id: m.id, adi: m.adi });
-                      }
-                    }}
-                    className="w-full flex items-center justify-between bg-amber-50 border border-amber-200 px-3 py-2 rounded-xl hover:bg-amber-100 active:scale-95 transition"
+      {/* Borç bilgisi ve Ödeme butonu - AKTİF */}
+      {borc > 0 && (
+        <button
+          // onClick={() => {
+            // console.log('Borçlu paketler:', m.musteri_paketleri);
+            // İlk borçlu paketi bul (herhangi bir hata durumunda alert göster)
+            // const borcluPaket = (m.musteri_paketleri || []).find(
+             //  (p) => parseFloat(p.ucret || 0) - parseFloat(p.odenen_tutar || 0) > 0
+           //  );
+           //  if (!borcluPaket) {
+            //   alert('Bu müşterinin borçlu paketi bulunamadı');
+             //  return;
+            // }
+           //  console.log('Seçilen paket:', borcluPaket);
+           //  setOdemePaket(borcluPaket);
+           //  setOdemeMusteri({ id: m.id, adi: m.adi });
+          // }}     
+          
+          onClick={() => {
+          const borcluPaket = (m.musteri_paketleri || []).find(
+           (p) => parseFloat(p.ucret || 0) - parseFloat(p.odenen_tutar || 0) > 0
+          );
+          if (!borcluPaket) { alert('Bu müşterinin borçlu paketi bulunamadı'); return; }
+          setOdeme({ paket: borcluPaket, musteri: { id: m.id, adi: m.adi } });
+      }}
+
+                  className="w-full flex items-center justify-between bg-amber-50 border border-amber-200 px-3 py-2 rounded-xl hover:bg-amber-100 active:scale-95 transition"
                   >
                     <div className="flex items-center gap-2">
                       <CreditCard className="w-4 h-4 text-amber-700" />
@@ -282,14 +299,11 @@ export default function ClientsView({ userRole }) {
         </div>
       )}
 
-      {odemePaket && odemeMusteri && (
+      {odeme && (
         <OdemeModal
-          paket={odemePaket}
-          musteri={odemeMusteri}
-          onClose={() => {
-            setOdemePaket(null);
-            setOdemeMusteri(null);
-          }}
+          paket={odeme.paket}
+          musteri={odeme.musteri}
+          onClose={() => setOdeme(null)}
           onSuccess={getir}
         />
       )}
