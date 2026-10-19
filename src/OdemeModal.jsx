@@ -2,18 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient.js';
 import { X } from './Icons.jsx';
 
-export default function OdemeModal({ isOpen, onClose, paket, musteri, onSuccess }) {
-  const [ekOdeme, setEkOdeme] = useState('');
+export default function OdemeModal({ paket, musteri, onClose, onSuccess }) {
+  const [ekOdeme, setEkOdeme] = useState('0');
   const [loading, setLoading] = useState(false);
   const [hata, setHata] = useState(null);
 
   useEffect(() => {
-    console.log('OdemeModal paket:', paket);
-    if (paket) {
-      const kalan = Math.max(0, parseFloat(paket.ucret || 0) - parseFloat(paket.odenen_tutar || 0));
-      setEkOdeme(String(kalan));
+    if (paket && paket.ucret != null) {
+      const kalan = Math.max(0, parseFloat(paket.ucret) - parseFloat(paket.odenen_tutar || 0));
+      setEkOdeme(String(kalan > 0 ? kalan : 0));
     }
   }, [paket]);
+
+  if (!paket) return null;
+
+  const kalan = Math.max(0, parseFloat(paket.ucret || 0) - parseFloat(paket.odenen_tutar || 0));
 
   const tahsilEt = async (e) => {
     e.preventDefault();
@@ -26,8 +29,8 @@ export default function OdemeModal({ isOpen, onClose, paket, musteri, onSuccess 
         setLoading(false);
         return;
       }
-      if (!paket?.id) {
-        setHata('Paket bilgisi eksik');
+      if (ek > kalan) {
+        setHata(`Kalan borç: ${kalan} TL`);
         setLoading(false);
         return;
       }
@@ -48,27 +51,14 @@ export default function OdemeModal({ isOpen, onClose, paket, musteri, onSuccess 
       await supabase.from('odeme_hareketleri').insert([
         { paket_id: paket.id, musteri_id: musteri.id, tutar: ek },
       ]);
-      onSuccess();
+      if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
-      setHata('Beklenmeyen hata: ' + err.message);
+      setHata('Hata: ' + err.message);
     } finally {
       setLoading(false);
     }
   };
-
-  if (!isOpen) return null;
-  if (!paket) {
-    return (
-      <div className="fixed inset-0 z-50 bg-black/60 flex justify-center items-center p-4">
-        <div className="bg-white w-full max-w-sm rounded-2xl p-5">
-          <p className="text-xs text-slate-500">Yükleniyor...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const kalan = Math.max(0, parseFloat(paket.ucret || 0) - parseFloat(paket.odenen_tutar || 0));
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex justify-center items-center p-4">
@@ -108,7 +98,7 @@ export default function OdemeModal({ isOpen, onClose, paket, musteri, onSuccess 
                 min="1"
                 max={kalan}
                 value={ekOdeme}
-                onChange={(e) => setEkOdeme(e.target.value)}
+                onChange={(e) => setEkOdeme(e.target.value.replace(/\D/g, ''))}
                 placeholder={`Maks ${kalan} TL`}
                 className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-extrabold"
               />
