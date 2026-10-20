@@ -76,10 +76,10 @@ export default function DigerView({ userRole }) {
       </div>
     );
   }
-
+// <div className="bg-gradient-to-br from-[#a78bfa] via-[#8b5cf6] to-[#6366f1] pt-8 pb-12 px-4 text-center"></div>
   return (
-    <div className="flex flex-col h-full bg-[#f59a00] overflow-y-auto">
-      <div className="bg-gradient-to-br from-[#a78bfa] via-[#8b5cf6] to-[#6366f1] pt-8 pb-12 px-4 text-center">
+    <div className="flex flex-col h-full bg-[#f6f5ff] overflow-y-auto">
+      <div className="bg-[#f59a00] pt-8 pb-12 px-4 text-center">
         <div className="w-16 h-16 bg-white/25 rounded-full flex items-center justify-center mx-auto">
           <span className="text-3xl text-white font-extrabold">
             {(profile?.adi || 'Y').charAt(0).toUpperCase()}

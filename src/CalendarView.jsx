@@ -61,23 +61,20 @@ export default function CalendarView() {
 
   return (
     <div className="flex flex-col h-screen bg-slate-50 max-w-md mx-auto shadow-2xl overflow-hidden">
-      <div className="bg-white px-4 py-3 flex justify-between items-center border-b">
-        <div className="flex items-center gap-2.5">
-          <img
-            src="/studio-g-logo.png"
-            alt="Studio G logosu"
-            className="w-9 h-9 rounded-md object-cover"
-          />
-          <span className="font-extrabold text-[16px]">Studio G</span>
-        </div>
+      <div className="bg-[#f59a00] px-4 py-0 flex justify-between items-center border-b border-amber-600/30">
+        <img
+          src="/studio-g-logo.png"
+          alt="Studio G"
+          className="w-12 h-12 object-contain"
+        />
         <button
           onClick={() => setModalAcik(true)}
           className="bg-[#5b46f5] text-white px-4 py-1.5 rounded-full text-xs font-extrabold"
         >
           + Randevu
         </button>
-      </div>
-      {(aktifSekme === 'takvim' || aktifSekme === 'ajanda') && (
+      </div>     
+       {(aktifSekme === 'takvim' || aktifSekme === 'ajanda') && (
         <WeekHeader secilenTarih={secilenTarih} setSecilenTarih={setSecilenTarih} userName={userName} />
       )}
 

@@ -1,350 +1,169 @@
-import React, { useRef, useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from './supabaseClient.js';
 import { Phone, MessageSquare, Clock, Search, CreditCard } from './Icons.jsx';
 import OdemeModal from './OdemeModal.jsx';
 
-export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitmen, setSecilenEgitmen, egitmenler, userId, userRole, onRandevuClick }) {
+const COLORS = ['#2563eb', '#16a34a', '#c026d3', '#f97316', '#0891b2', '#7c3aed'];
+const money = (value) => Number(value || 0).toLocaleString('tr-TR');
+const time = (value) => new Date(value).toLocaleTimeString('tr-TR', {
+  hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul',
+});
+const dayString = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+const moveDay = (date, step) => {
+  const d = new Date(`${date}T12:00:00`);
+  d.setDate(d.getDate() + step);
+  return dayString(d);
+};
+
+export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitmen, setSecilenEgitmen, egitmenler = [], userId, userRole, onRandevuClick }) {
   const [arama, setArama] = useState('');
+  const [randevular, setRandevular] = useState([]);
   const [paketMap, setPaketMap] = useState({});
   const [odeme, setOdeme] = useState(null);
-  const [randevular, setRandevular] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [hata, setHata] = useState('');
+  const touch = useRef(null);
 
-  const touch = useRef({ x: 0, y: 0 });
-  const onStart = (e) => (touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY });
-  const onEnd = (e) => {
-    const dx = e.changedTouches[0].clientX - touch.current.x;
-    const dy = e.changedTouches[0].clientY - touch.current.y;
-    if (Math.abs(dx) < 80 || Math.abs(dx) < Math.abs(dy)) return;
-    const d = new Date(secilenTarih + 'T12:00:00');
-    d.setDate(d.getDate() + (dx < 0 ? 1 : -1));
-    setSecilenTarih(d.toISOString().slice(0, 10));
+  const randevulariGetir = async (cancelled = () => false) => {
+    setLoading(true);
+    setHata('');
+    // Supabase timestamptz stores UTC; the selected calendar day is Istanbul time.
+    const start = new Date(`${secilenTarih}T00:00:00+03:00`).toISOString();
+    const end = new Date(`${moveDay(secilenTarih, 1)}T00:00:00+03:00`).toISOString();
+    let query = supabase.from('randevular')
+      .select('id,musteri_id,hizmet_id,egitmen_id,baslangic_saati,bitis_saati,durum,grup_id,musteriler(adi,telefon),hizmetler(adi,tur,katilim_sayisi),kullanicilar(adi)')
+      .gte('baslangic_saati', start).lt('baslangic_saati', end).order('baslangic_saati');
+    if (userRole !== 'Admin') {
+      if (!userId) { setLoading(false); return; }
+      query = query.eq('egitmen_id', userId).eq('durum', 'planlandı');
+    } else if (secilenEgitmen && secilenEgitmen !== 'tumu') {
+      query = query.eq('egitmen_id', secilenEgitmen);
+    }
+    const { data, error } = await query;
+    if (cancelled()) return;
+    if (error) { setHata(error.message); setLoading(false); return; }
+    const rows = data || [];
+    setRandevular(rows);
+    const ids = [...new Set(rows.map((r) => r.musteri_id).filter(Boolean))];
+    if (!ids.length) { setPaketMap({}); setLoading(false); return; }
+    const { data: packages, error: packageError } = await supabase.from('musteri_paketleri')
+      .select('id,musteri_id,hizmet_id,toplam_seans,kalan_seans,ucret,odenen_tutar,durum,olusturma_tarihi,hizmetler(adi)')
+      .in('musteri_id', ids).order('olusturma_tarihi', { ascending: true });
+    if (cancelled()) return;
+    if (packageError) setHata(packageError.message);
+    const map = {};
+    (packages || []).forEach((p) => {
+      const key = `${p.musteri_id}_${p.hizmet_id}`;
+      (map[key] ||= []).push(p);
+    });
+    setPaketMap(map);
+    setLoading(false);
   };
 
   useEffect(() => {
-    randevulariGetir();
-    gecmisRandevulariTamamlandiYap();
+    let cancelled = false;
+    const load = async () => {
+      // Keep the existing automatic completion behavior; cancelled sessions are excluded.
+      const { data: past, error } = await supabase.from('randevular')
+        .select('id').eq('durum', 'planlandı')
+        .lt('bitis_saati', new Date().toISOString()).limit(50);
+      if (error && !cancelled) setHata(error.message);
+      if (past?.length) {
+        const { error: updateError } = await supabase.from('randevular')
+          .update({ durum: 'tamamlandı' }).in('id', past.map((r) => r.id));
+        if (updateError && !cancelled) setHata(updateError.message);
+      }
+      if (!cancelled) await randevulariGetir(() => cancelled);
+    };
+    load();
+    return () => { cancelled = true; };
   }, [secilenTarih, secilenEgitmen, userId, userRole]);
 
-  const gecmisRandevulariTamamlandiYap = async () => {
-    const simdi = new Date().toISOString();
-    const { data: gecmis } = await supabase
-      .from('randevular')
-      .select('id, durum')
-      .eq('durum', 'planlandı')
-      .lt('bitis_saati', simdi)
-      .limit(50);
-    if (gecmis && gecmis.length > 0) {
-      const ids = gecmis.map((r) => r.id);
-      await supabase.from('randevular').update({ durum: 'tamamlandı' }).in('id', ids);
-    }
+  const paketFor = (r) => {
+    const packages = paketMap[`${r.musteri_id}_${r.hizmet_id}`] || [];
+    // Existing schema has no randevular.paket_id; match customer + service.
+    return packages.find((p) => Number(p.ucret) > Number(p.odenen_tutar))
+      || packages.find((p) => p.durum && Number(p.kalan_seans) > 0) || null;
   };
-
-  const randevulariGetir = async () => {
-    setLoading(true);
-    let q = supabase
-      .from('randevular')
-      .select('id, musteri_id, hizmet_id, egitmen_id, baslangic_saati, bitis_saati, durum, grup_id, musteriler(adi, telefon), hizmetler(adi, tur, katilim_sayisi), kullanicilar(adi)')
-      .gte('baslangic_saati', secilenTarih + 'T00:00:00')
-      .lte('baslangic_saati', secilenTarih + 'T23:59:59')
-      .order('baslangic_saati');
-
-    if (userRole === 'Eğitmen' && userId) {
-      q = q.eq('egitmen_id', userId);
-      q = q.eq('durum', 'planlandı');
-    } else if (secilenEgitmen && secilenEgitmen !== 'tumu') {
-      q = q.eq('egitmen_id', secilenEgitmen);
-    }
-
-    const { data } = await q;
-    if (data) setRandevular(data);
-    setLoading(false);
-
-    if (data && data.length > 0) {
-      const musteriIds = [...new Set(data.map((r) => r.musteri_id))];
-      const hizmetIds = [...new Set(data.map((r) => r.hizmet_id))];
-      const { data: paketler } = await supabase
-        .from('musteri_paketleri')
-        .select('musteri_id, hizmet_id, id, toplam_seans, kalan_seans, ucret, odenen_tutar, durum, hizmetler(adi)')
-        .in('musteri_id', musteriIds)
-        .in('hizmet_id', hizmetIds)
-        .eq('durum', true)
-        .gt('kalan_seans', 0);
-      const map = {};
-      (paketler || []).forEach((p) => {
-        const key = `${p.musteri_id}_${p.hizmet_id}`;
-        if (!map[key]) map[key] = [];
-        map[key].push(p);
-      });
-      setPaketMap(map);
-    } else {
-      setPaketMap({});
-    }
+  const borrow = (p) => Math.max(0, Number(p?.ucret || 0) - Number(p?.odenen_tutar || 0));
+  const pay = (r) => {
+    const paket = paketFor(r);
+    if (paket && borrow(paket) > 0) setOdeme({ paket, musteri: { id: r.musteri_id, adi: r.musteriler?.adi } });
   };
-
-  const saatFormatla = (t) => {
-    const d = new Date(t);
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  };
-
   const wa = (tel) => {
-    let c = tel.replace(/\D/g, '');
-    if (c.startsWith('0')) c = c.substring(1);
-    if (!c.startsWith('90')) c = '90' + c;
-    window.open(`https://wa.me/${c}`, '_blank');
+    let number = (tel || '').replace(/\D/g, '');
+    if (!number) return;
+    if (number.startsWith('0')) number = number.slice(1);
+    if (!number.startsWith('90')) number = `90${number}`;
+    window.open(`https://wa.me/${number}`, '_blank', 'noopener,noreferrer');
   };
-
-  const tumSeanslariSil = async (randevu, e) => {
-    if (e) e.stopPropagation();
-    if (!window.confirm('Bu randevuya ait TÜM seanslar silinecek. Tamamlanmış seansların hakedişi korunur. Devam edilsin mi?')) return;
-    try {
-      const ids = randevu.grup_id
-        ? (await supabase.from('randevular').select('id').eq('grup_id', randevu.grup_id)).data?.map((r) => r.id) || [randevu.id]
-        : [randevu.id];
-      const silinecekIds = (await supabase
-        .from('randevular')
-        .select('id, durum')
-        .in('id', ids)).data?.filter((r) => r.durum !== 'tamamlandı').map((r) => r.id) || [];
-      if (silinecekIds.length > 0) {
-        await supabase.from('egitmen_kazanc_hareketleri').update({ randevu_id: null }).in('randevu_id', silinecekIds);
-        await supabase.from('randevular').delete().in('id', silinecekIds);
-      }
-      randevulariGetir();
-    } catch (err) {
-      alert('Hata: ' + err.message);
-    }
-  };
-
   const grouped = useMemo(() => {
-    const g = {};
-    (randevular || []).forEach((r) => {
-      const k = r.grup_id || `tek_${r.id}`;
-      if (!g[k]) g[k] = [];
-      g[k].push(r);
+    const map = new Map();
+    randevular.forEach((r) => {
+      const key = r.grup_id || r.id;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(r);
     });
-    return Object.values(g);
+    return [...map.values()];
   }, [randevular]);
+  const visible = grouped.filter((group) => !arama || group.some((r) =>
+    (r.musteriler?.adi || '').toLocaleLowerCase('tr-TR').includes(arama.toLocaleLowerCase('tr-TR')) ||
+    (r.musteriler?.telefon || '').includes(arama)));
 
-  const list = useMemo(() => {
-    let l = grouped;
-    if (arama) {
-      const q = arama.toLowerCase();
-      l = l.filter((g) =>
-        g.some(
-          (r) =>
-            (r.musteriler?.adi || '').toLowerCase().includes(q) ||
-            (r.musteriler?.telefon || '').includes(arama),
-        ),
-      );
-    }
-    return l;
-  }, [grouped, arama]);
-
-  const colors = ['#2563eb', '#16a34a', '#c026d3', '#f97316', '#0891b2', '#7c3aed'];
-
-  const durumBadge = (durum) => {
-    if (durum === 'tamamlandı') return { text: 'Tamamlandı', color: 'bg-emerald-100 text-emerald-700' };
-    if (durum === 'iptal edildi') return { text: 'İptal', color: 'bg-rose-100 text-rose-700' };
-    return { text: 'Planlandı', color: 'bg-slate-100 text-slate-700' };
-  };
+  const status = (r) => r.durum === 'tamamlandı'
+    ? ['Tamamlandı', 'bg-emerald-100 text-emerald-700']
+    : r.durum === 'iptal edildi' ? ['İptal', 'bg-rose-100 text-rose-700']
+      : ['Planlandı', 'bg-slate-100 text-slate-700'];
 
   return (
-    <div className="flex flex-col h-full bg-[#f8f7ff]" onTouchStart={onStart} onTouchEnd={onEnd}>
-      {userRole === 'Admin' && (
-        <div className="bg-white p-2 border-b">
-          <div className="flex gap-2 overflow-x-auto no-scrollbar">
-            <button
-              onClick={() => setSecilenEgitmen('tumu')}
-              className={`px-3 py-1.5 rounded-full text-[11px] font-extrabold whitespace-nowrap ${
-                secilenEgitmen === 'tumu' ? 'bg-slate-900 text-white' : 'bg-slate-100'
-              }`}
-            >
-              Tümü
-            </button>
-            {(egitmenler || []).map((e) => (
-              <button
-                key={e.id}
-                onClick={() => setSecilenEgitmen(e.id)}
-                className={`px-3 py-1.5 rounded-full text-[11px] font-extrabold whitespace-nowrap ${
-                  secilenEgitmen === e.id ? 'bg-indigo-600 text-white' : 'bg-slate-100'
-                }`}
-              >
-                {e.adi}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="bg-white p-2 border-b">
-        <div className="relative">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-          <input
-            value={arama}
-            onChange={(e) => setArama(e.target.value)}
-            placeholder="Üye veya telefon ara..."
-            className="w-full pl-9 pr-3 py-2 bg-slate-50 border rounded-xl text-xs font-bold"
-          />
-        </div>
+    <div className="flex flex-col h-full bg-[#f8f7ff]" onTouchStart={(e) => { touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }} onTouchEnd={(e) => {
+      if (!touch.current) return;
+      const dx = e.changedTouches[0].clientX - touch.current.x;
+      const dy = e.changedTouches[0].clientY - touch.current.y;
+      if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy)) setSecilenTarih(moveDay(secilenTarih, dx < 0 ? 1 : -1));
+      touch.current = null;
+    }}>
+      <div className="bg-white p-2 border-b space-y-2">
+        {userRole === 'Admin' && <div className="flex gap-2 overflow-x-auto no-scrollbar">
+          <button onClick={() => setSecilenEgitmen('tumu')} className="shrink-0 px-3 py-1.5 rounded-full text-[11px] font-extrabold bg-slate-100">Tümü</button>
+          {egitmenler.map((e) => <button key={e.id} onClick={() => setSecilenEgitmen(e.id)} className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-extrabold ${secilenEgitmen === e.id ? 'bg-indigo-600 text-white' : 'bg-slate-100'}`}>{e.adi}</button>)}
+        </div>}
+        <div className="relative"><Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" /><input value={arama} onChange={(e) => setArama(e.target.value)} placeholder="Üye veya telefon ara..." className="w-full pl-9 pr-3 py-2 bg-slate-50 border rounded-xl text-xs font-bold" /></div>
       </div>
-
       <div className="flex-1 overflow-y-auto p-2.5 space-y-2">
-        {loading ? (
-          <div className="text-center py-10 text-xs font-bold">Yükleniyor</div>
-        ) : list.length === 0 ? (
-          <div className="text-center py-16 text-xs font-bold text-slate-400">Randevu yok</div>
-        ) : (
-          list.map((g) => {
-            const f = g[0];
-            const isGrup = f.hizmetler?.tur === 'Grup';
-            const cap = f.hizmetler?.katilim_sayisi || 1;
-            const paketKey = `${f.musteri_id}_${f.hizmet_id}`;
-            const paketler = paketMap[paketKey] || [];
-            const aktifPaket = paketler[0];
-            const borc = aktifPaket ? aktifPaket.ucret - aktifPaket.odenen_tutar : 0;
-            const badge = durumBadge(f.durum);
-
-            return (
-              <div
-                key={f.grup_id || f.id}
-                className={`bg-white rounded-xl p-2.5 shadow-sm border ${
-                  f.durum === 'tamamlandı' ? 'border-emerald-200 bg-emerald-50/30' :
-                  f.durum === 'iptal edildi' ? 'border-rose-200 bg-rose-50/30' :
-                  'border-slate-100'
-                }`}
-              >
-                <div className="flex justify-between items-center">
-                  <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold ${badge.color}`}>
-                    <Clock className="w-3 h-3" />
-                    {saatFormatla(f.baslangic_saati)} - {saatFormatla(f.bitis_saati)}
-                    {isGrup ? ` • ${g.length}/${cap}` : ''}
+        {hata && <p className="text-xs text-red-600">{hata}</p>}
+        {loading ? <p className="text-center py-10 text-xs font-bold">Yükleniyor</p> : visible.length === 0 ? <p className="text-center py-16 text-xs font-bold text-slate-400">Randevu yok</p> : visible.map((group) => {
+          const first = group[0];
+          const isGroup = first.hizmetler?.tur === 'Grup';
+          const [label, badge] = status(first);
+          const trainerIndex = egitmenler.findIndex((e) => e.id === first.egitmen_id);
+          return <div key={first.grup_id || first.id} className="bg-white rounded-xl p-2.5 shadow-sm border border-slate-100">
+            <div className="flex items-center justify-between gap-1">
+              <span className={`flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-extrabold ${badge}`}><Clock className="w-3 h-3" />{time(first.baslangic_saati)} - {time(first.bitis_saati)}</span>
+              <div className="flex items-center gap-1"><span className="rounded-full px-2 py-0.5 text-[9px] font-bold text-white" style={{ backgroundColor: COLORS[trainerIndex < 0 ? 0 : trainerIndex % COLORS.length] }}>{first.kullanicilar?.adi?.split(' ')[0]}</span><span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${badge}`}>{label}</span></div>
+            </div>
+            <div className="mt-2 text-[11px] font-bold text-slate-600">{first.hizmetler?.adi} {isGroup ? `Grup ${group.length}/${first.hizmetler?.katilim_sayisi || 1}` : 'Bireysel'}</div>
+            <div className="mt-2 space-y-1">
+              {group.map((r) => {
+                const paket = paketFor(r);
+                const debt = borrow(paket);
+                return <div key={r.id} className="flex items-center justify-between gap-2 py-1 border-t border-slate-50">
+                  <div className="min-w-0"><div className="text-xs font-extrabold truncate">{r.musteriler?.adi || 'Müşteri'}</div>{paket && <div className="text-[10px] text-indigo-700">{paket.kalan_seans}/{paket.toplam_seans} seans</div>}</div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {debt > 0 && <button onClick={() => pay(r)} className="px-2 py-1 text-[10px] font-extrabold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-1"><CreditCard className="w-3 h-3" />{money(debt)} TL Alacak</button>}
+                    <a href={`tel:${r.musteriler?.telefon || ''}`} className="w-6 h-6 bg-slate-50 border rounded-full flex items-center justify-center"><Phone className="w-3 h-3" /></a>
+                    <button onClick={() => wa(r.musteriler?.telefon)} className="w-6 h-6 bg-emerald-50 rounded-full flex items-center justify-center"><MessageSquare className="w-3 h-3 text-emerald-600" /></button>
                   </div>
-                  <div className="flex gap-1.5 items-center">
-                    <span
-                      className="text-[9px] font-extrabold text-white px-2 py-0.5 rounded-full"
-                      style={{ backgroundColor: colors[(egitmenler || []).findIndex((e) => e.id === f.egitmen_id) % colors.length] || '#6366f1' }}
-                    >
-                      {f.kullanicilar?.adi?.split(' ')[0]}
-                    </span>
-                    <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${badge.color}`}>
-                      {badge.text}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mt-2 text-left">
-                  {isGrup ? (
-                    <div className="space-y-1">
-                      {g.map((r) => (
-                        <div key={r.id} className="flex justify-between items-center">
-                          <span className={`text-[12px] font-extrabold ${
-                            f.durum === 'tamamlandı' ? 'line-through text-slate-500' : 'text-slate-900'
-                          }`}>
-                            {r.musteriler?.adi}
-                          </span>
-                          <div className="flex gap-1">
-                            <a
-                              href={`tel:${r.musteriler?.telefon}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="w-6 h-6 bg-slate-50 border rounded-full flex items-center justify-center"
-                            >
-                              <Phone className="w-3 h-3" />
-                            </a>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); wa(r.musteriler?.telefon); }}
-                              className="w-6 h-6 bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-center"
-                            >
-                              <MessageSquare className="w-3 h-3 text-emerald-600" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex justify-between items-center">
-                      <span className={`text-[13px] font-extrabold ${
-                        f.durum === 'tamamlandı' ? 'line-through text-slate-500' : 'text-slate-900'
-                      }`}>
-                        {f.musteriler?.adi}
-                      </span>
-                      <div className="flex gap-1">
-                        <a
-                          href={`tel:${f.musteriler?.telefon}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="w-7 h-7 bg-slate-50 border rounded-full flex items-center justify-center"
-                        >
-                          <Phone className="w-3.5 h-3.5" />
-                        </a>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); wa(f.musteriler?.telefon); }}
-                          className="w-7 h-7 bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-center"
-                        >
-                          <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  <div className="text-[10px] font-bold text-slate-500 mt-1">
-                    {f.hizmetler?.adi} {isGrup ? `• Grup ${g.length}/${cap} kişi` : '• Bireysel'}
-                  </div>
-                  {aktifPaket && (
-                    <div className="text-[10px] font-bold mt-1 flex flex-wrap gap-1">
-                      <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full">
-                        {aktifPaket.kalan_seans}/{aktifPaket.toplam_seans} {f.hizmetler?.adi}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-2 flex justify-between items-center gap-2">
-                  <div>
-                    {aktifPaket && borc > 0 && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOdeme({
-                            paket: aktifPaket,
-                            musteri: { id: f.musteri_id, adi: f.musteriler?.adi },
-                          });
-                        }}
-                        className="text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full flex items-center gap-1"
-                      >
-                        <CreditCard className="w-3 h-3" />
-                        {borc} TL Alacak ({f.hizmetler?.adi})
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex gap-1">
-                    {isGrup && f.durum === 'planlandı' && (
-                      <button
-                        onClick={(e) => tumSeanslariSil(f, e)}
-                        className="text-[10px] font-extrabold bg-red-50 text-red-600 border border-red-200 px-2.5 py-1 rounded-full"
-                      >
-                        Tümünü Sil
-                      </button>
-                    )}
-                    <button
-                      onClick={() => onRandevuClick(f)}
-                      className="text-[10px] font-extrabold bg-white border px-3 py-1 rounded-full"
-                    >
-                      Detay →
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })
-        )}
+                </div>;
+              })}
+            </div>
+            <div className="mt-2 flex justify-end gap-2">
+              <button onClick={() => onRandevuClick(first)} className="text-[10px] font-extrabold border px-3 py-1 rounded-full">Detay</button>
+            </div>
+          </div>;
+        })}
       </div>
-
-      {odeme && (
-        <OdemeModal
-          paket={odeme.paket}
-          musteri={odeme.musteri}
-          onClose={() => setOdeme(null)}
-          onSuccess={randevulariGetir}
-        />
-      )}
+      {odeme && <OdemeModal isOpen paket={odeme.paket} musteri={odeme.musteri} onClose={() => setOdeme(null)} onSuccess={() => { setOdeme(null); randevulariGetir(); }} />}
     </div>
   );
 }
