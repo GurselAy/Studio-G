@@ -41,8 +41,8 @@ export default function IstatistikView() {
         .from('isletme_giderleri')
         .select('tutar, kategori, tarih')
         .gte('tarih', ay + '-01')
-        .lt('tarih', end.toISOString().slice(0, 10)),
-    ]);
+        .lt('tarih', `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-01`),
+]);
     const randevular = randevuRes.data;
     const paketler = paketRes.data;
     const odemeler = odemeRes.data;
@@ -117,8 +117,12 @@ export default function IstatistikView() {
         />
       </div>
 
-      {/* Üst Kartlar - 4'lü grid */}
-      <div className="grid grid-cols-2 gap-2">
+      {/* 1. Satır: Paket Satış - Toplam Seans - Tamamlanan */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="bg-white p-3 rounded-xl border text-center">
+          <div className="text-[20px] font-extrabold text-slate-900">{stats.paketSayisi}</div>
+          <div className="text-[10px] font-bold text-slate-500">PAKET SATIŞ</div>
+        </div>
         <div className="bg-white p-3 rounded-xl border text-center">
           <div className="text-[20px] font-extrabold text-slate-900">{stats.toplam}</div>
           <div className="text-[10px] font-bold text-slate-500">TOPLAM SEANS</div>
@@ -127,30 +131,34 @@ export default function IstatistikView() {
           <div className="text-[20px] font-extrabold text-emerald-700">{stats.tamam}</div>
           <div className="text-[10px] font-bold text-emerald-700">TAMAMLANAN</div>
         </div>
-        <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-200 text-center">
-          <div className="text-[20px] font-extrabold text-[#5b46f5]">{stats.ciro.toLocaleString('tr-TR')} TL</div>
-          <div className="text-[10px] font-bold text-[#5b46f5]">CİRO</div>
+      </div>
+
+      {/* 2. Satır: Eğitmen Hakediş - Toplam Gider */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 text-center">
+          <div className="text-[20px] font-extrabold text-amber-600">{stats.hakedis.toLocaleString('tr-TR')} TL</div>
+          <div className="text-[10px] font-bold text-amber-600">EĞİTMEN HAKEDİŞ</div>
         </div>
+
         <div className="bg-rose-50 p-3 rounded-xl border border-rose-200 text-center">
           <div className="text-[20px] font-extrabold text-rose-700">{stats.toplamGider.toLocaleString('tr-TR')} TL</div>
           <div className="text-[10px] font-bold text-rose-700">TOPLAM GİDER</div>
         </div>
       </div>
 
-      {/* Net Kar/Zarar Kartı */}
-      <div className={`${netKar >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'} p-3 rounded-xl border shadow-sm`}>
-        <div className="flex justify-between items-center">
-          <div>
-            <div className="text-[10px] font-bold text-slate-500">
-              {netKar >= 0 ? 'NET KÂR' : 'NET ZARAR'} (bu ay)
-            </div>
-            <div className={`text-[18px] font-extrabold ${netKar >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-              {netKar.toLocaleString('tr-TR')} TL
-            </div>
+      {/* 3. Satır: Ciro - Net Kâr */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-200 text-center">
+          <div className="text-[20px] font-extrabold text-[#5b46f5]">{stats.ciro.toLocaleString('tr-TR')} TL</div>
+          <div className="text-[10px] font-bold text-[#5b46f5]">CİRO</div>
+        </div>
+
+        <div className={`${netKar >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'} p-3 rounded-xl border text-center`}>
+          <div className={`text-[20px] font-extrabold ${netKar >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+            {netKar.toLocaleString('tr-TR')} TL
           </div>
-          <div className="text-right text-[10px] font-bold text-slate-500">
-            <div>Ciro: {stats.ciro.toLocaleString('tr-TR')} TL</div>
-            <div>Gider: {stats.toplamGider.toLocaleString('tr-TR')} TL</div>
+          <div className={`text-[10px] font-bold ${netKar >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+            {netKar >= 0 ? 'NET KÂR' : 'NET ZARAR'} (BU AY)
           </div>
         </div>
       </div>
@@ -234,18 +242,6 @@ export default function IstatistikView() {
               <span className="text-[8px] font-bold text-slate-500">{d.date}</span>
             </div>
           ))}
-        </div>
-      </div>
-
-      {/* Alt Kartlar - Paket + Hakediş */}
-      <div className="grid grid-cols-2 gap-2 pb-4">
-        <div className="bg-white p-3 rounded-xl border">
-          <div className="text-[10px] font-bold text-slate-500">PAKET SATIŞ</div>
-          <div className="text-[16px] font-extrabold">{stats.paketSayisi} paket</div>
-        </div>
-        <div className="bg-white p-3 rounded-xl border">
-          <div className="text-[10px] font-bold text-slate-500">EĞİTMEN HAKEDİŞ</div>
-          <div className="text-[16px] font-extrabold text-amber-600">{stats.hakedis.toLocaleString('tr-TR')} TL</div>
         </div>
       </div>
     </div>

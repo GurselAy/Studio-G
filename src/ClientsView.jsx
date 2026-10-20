@@ -18,6 +18,7 @@ export default function ClientsView({ userRole }) {
   const [egitmenler, setEgitmenler] = useState([]);
   const [yeniAd, setYeniAd] = useState('');
   const [yeniTel, setYeniTel] = useState('');
+  const [grupDoluluk, setGrupDoluluk] = useState({}); // { paket_id: kişi sayısı }
 
   useEffect(() => { getir(); }, []);
 
@@ -25,9 +26,46 @@ export default function ClientsView({ userRole }) {
     setLoading(true);
     const { data } = await supabase
       .from('musteriler')
-      .select(`*, musteri_paketleri(*, hizmetler(adi))`)
+      .select(`*, musteri_paketleri(*, hizmetler(adi, tur, katilim_sayisi))`)
       .order('adi');
     if (data) setMusteriler(data);
+
+    // Grup paketlerinin doluluğu
+    const grupPaketIds = (data || [])
+      .flatMap((m) => m.musteri_paketleri || [])
+      .filter((p) => p.durum && p.kalan_seans > 0 && p.hizmetler?.tur === 'Grup')
+      .map((p) => p.id);
+
+    const doluluk = {};
+    if (grupPaketIds.length > 0) {
+      const { data: seanslar } = await supabase
+        .from('randevular')
+        .select('paket_id, grup_id, baslangic_saati, durum')
+        .in('paket_id', grupPaketIds)
+        .order('baslangic_saati', { ascending: true });
+
+      // Her paket için sıradaki planlı seansın grup_id'si
+      const paketGrup = {};
+      grupPaketIds.forEach((pid) => {
+        const s = (seanslar || []).filter((r) => r.paket_id === pid);
+        const siradaki = s.find((r) => r.durum === 'planlandı') || s[s.length - 1];
+        if (siradaki?.grup_id) paketGrup[pid] = siradaki.grup_id;
+      });
+
+      const grupIdler = [...new Set(Object.values(paketGrup))];
+      if (grupIdler.length > 0) {
+        const { data: grupRnd } = await supabase
+          .from('randevular')
+          .select('grup_id')
+          .in('grup_id', grupIdler)
+          .neq('durum', 'iptal edildi');
+        const sayac = {};
+        (grupRnd || []).forEach((g) => { sayac[g.grup_id] = (sayac[g.grup_id] || 0) + 1; });
+        Object.entries(paketGrup).forEach(([pid, gid]) => { doluluk[pid] = sayac[gid] || 1; });
+      }
+    }
+    setGrupDoluluk(doluluk);
+
     const { data: eg } = await supabase.from('kullanicilar').select('id,adi').order('adi');
     if (eg) setEgitmenler(eg);
     setLoading(false);
@@ -144,6 +182,11 @@ export default function ClientsView({ userRole }) {
                             <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap">
                               {p.kalan_seans}/{p.toplam_seans} {p.hizmetler?.adi}
                             </span>
+                            {p.hizmetler?.tur === 'Grup' && (
+                              <span className="bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full text-[10px] font-extrabold whitespace-nowrap">
+                                Grup {grupDoluluk[p.id] || 1}/{p.hizmetler?.katilim_sayisi}
+                              </span>
+                            )}
                             {borc > 0 && (
                               <span className="bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
                                 {borc.toLocaleString('tr-TR')} TL borç
@@ -161,13 +204,6 @@ export default function ClientsView({ userRole }) {
                         </div>
                       );
                     })}
-                  </div>
-                )}
-
-                {paketler.length > 0 && toplam > 0 && (
-                  <div className="mt-2 pt-2 border-t border-slate-100 flex justify-between items-center">
-                    <span className="text-[10px] font-bold text-slate-500">Toplam Borç</span>
-                    <span className="text-[13px] font-extrabold text-rose-600">{toplam.toLocaleString('tr-TR')} TL</span>
                   </div>
                 )}
 

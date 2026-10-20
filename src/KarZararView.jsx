@@ -23,8 +23,7 @@ export default function KarZararView() {
     const [odemeRes, kazancRes, giderRes] = await Promise.all([
       supabase.from('odeme_hareketleri').select('tutar,tarih').gte('tarih', start.toISOString()).lt('tarih', end.toISOString()),
       supabase.from('egitmen_kazanc_hareketleri').select('tutar,tarih,egitmen_id,kullanicilar(adi)').gte('tarih', start.toISOString()).lt('tarih', end.toISOString()),
-      supabase.from('isletme_giderleri').select('*,kullanicilar(adi)').gte('tarih', ay + '-01').lt('tarih', end.toISOString().slice(0, 10)),
-    ]);
+      supabase.from('isletme_giderleri').select('*,kullanicilar(adi)').gte('tarih', ay + '-01').lt('tarih', `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-01`),    ]);
     const odemeler = odemeRes.data || [];
     const kazanc = kazancRes.data || [];
     const gider = giderRes.data || [];

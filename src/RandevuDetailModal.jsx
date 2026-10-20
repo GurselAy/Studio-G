@@ -1,8 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient.js';
-import { X, Trash, Plus, Phone, MessageSquare } from './Icons.jsx';
+import { X, Plus, Phone, MessageSquare } from './Icons.jsx';
 
-export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess, egitmenler }) {
+const pad = (n) => String(n).padStart(2, '0');
+const tl = (n) => parseFloat(n || 0).toLocaleString('tr-TR');
+
+function genUUID() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess, egitmenler = [] }) {
   const [tarih, setTarih] = useState('');
   const [saat, setSaat] = useState('');
   const [egitmenId, setEgitmenId] = useState('');
@@ -12,88 +24,81 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
   const [grupRandevular, setGrupRandevular] = useState([]);
   const [musteriler, setMusteriler] = useState([]);
   const [yeniMusteriId, setYeniMusteriId] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (randevu) {
       const d = new Date(randevu.baslangic_saati);
-      setTarih(d.toISOString().split('T')[0]);
-      setSaat(d.toTimeString().slice(0, 5));
+      setTarih(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+      setSaat(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
       setEgitmenId(randevu.egitmen_id);
       setDurum(randevu.durum);
       setHata(null);
+      setYeniMusteriId('');
       fetchGrup();
       fetchMusteriler();
     }
   }, [randevu]);
 
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from('kullanicilar').select('rol').eq('id', user.id).single();
+      setIsAdmin(data?.rol === 'Admin');
+    })();
+  }, []);
+
   const fetchGrup = async () => {
-    if (!randevu) return;
-    let q = supabase
+    if (!randevu?.grup_id) return setGrupRandevular([]);
+    const { data } = await supabase
       .from('randevular')
-      .select('id, musteri_id, durum, musteriler(adi, telefon), hizmetler(adi, tur, katilim_sayisi)');
-    if (randevu.grup_id) {
-      q = q.eq('grup_id', randevu.grup_id);
-    } else {
-      q = q
-        .eq('egitmen_id', randevu.egitmen_id)
-        .eq('hizmet_id', randevu.hizmet_id)
-        .gte('baslangic_saati', new Date(new Date(randevu.baslangic_saati).getTime() - 1000).toISOString())
-        .lte('baslangic_saati', new Date(new Date(randevu.baslangic_saati).getTime() + 1000).toISOString());
-    }
-    const { data } = await q;
-    if (data) setGrupRandevular(data);
+      .select('id, musteri_id, durum, musteriler(adi, telefon), hizmetler(adi, tur, katilim_sayisi)')
+      .eq('grup_id', randevu.grup_id)
+      .neq('durum', 'iptal edildi');
+    setGrupRandevular(data || []);
   };
+
   const fetchMusteriler = async () => {
     const { data } = await supabase.from('musteriler').select('*').order('adi');
     if (data) setMusteriler(data);
   };
 
   if (!isOpen || !randevu) return null;
-  const isGrup = randevu.hizmetler?.tur === 'Grup' || (grupRandevular[0]?.hizmetler?.tur === 'Grup');
+
+  const isGrup = randevu.hizmetler?.tur === 'Grup' || grupRandevular[0]?.hizmetler?.tur === 'Grup';
   const kapasite = randevu.hizmetler?.katilim_sayisi || grupRandevular[0]?.hizmetler?.katilim_sayisi || 1;
 
+  // ---- GÜNCELLE ----
   const guncelle = async () => {
     setLoading(true);
     setHata(null);
     try {
-      const origStart = new Date(randevu.baslangic_saati);
-      const origEnd = new Date(randevu.bitis_saati);
-      const duration = origEnd - origStart;
-      const newStart = new Date(`${tarih}T${saat}:00`);
-      const newEnd = new Date(newStart.getTime() + duration);
-      const { error } = await supabase
+      const sureMs = new Date(randevu.bitis_saati) - new Date(randevu.baslangic_saati);
+      const [y, m, d] = tarih.split('-').map(Number);
+      const [sh, sm] = saat.split(':').map(Number);
+      const newStart = new Date(y, m - 1, d, sh, sm, 0);
+      const newEnd = new Date(newStart.getTime() + sureMs);
+
+      // Saat / eğitmen: grupta tüm katılımcılar birlikte taşınır
+      const ids = isGrup && grupRandevular.length > 0 ? grupRandevular.map((g) => g.id) : [randevu.id];
+      const { error: e1 } = await supabase
         .from('randevular')
         .update({
           baslangic_saati: newStart.toISOString(),
           bitis_saati: newEnd.toISOString(),
           egitmen_id: egitmenId,
-          durum,
         })
-        .eq('id', randevu.id);
-      if (error) throw error;
-      if (onSuccess) onSuccess();
-      onClose();
-    } catch (e) {
-      setHata(e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+        .in('id', ids);
+      if (e1) throw e1;
 
-  const tumSeanslariSil = async () => {
-    if (!window.confirm('Bu randevuya ait TÜM seanslar silinecek. Tamamlanmış randevulara ait kazanç kayıtları KORUNACAK. Devam edilsin mi?')) return;
-    setLoading(true);
-    try {
-      const ids = grupRandevular.length > 0 ? grupRandevular.map((g) => g.id) : [randevu.id];
-      // Tamamlanmamışları sil
-      const silinecekIds = grupRandevular.filter((g) => g.durum !== 'tamamlandı').map((g) => g.id);
-      if (silinecekIds.length > 0) {
-        // Ödeme referanslarını null'la (kazanç korunsun)
-        await supabase.from('odeme_hareketleri').update({ paket_id: null }).in('paket_id', []);
-        await supabase.from('egitmen_kazanc_hareketleri').update({ randevu_id: null }).in('randevu_id', silinecekIds);
-        await supabase.from('randevular').delete().in('id', silinecekIds);
+      // Durum sadece bu müşterinin seansı için
+      if (durum !== randevu.durum) {
+        const { error: e2 } = await supabase.from('randevular').update({ durum }).eq('id', randevu.id);
+        if (e2) throw e2;
       }
-      if (onSuccess) onSuccess();
+
+      onSuccess && onSuccess();
       onClose();
     } catch (e) {
       setHata(e.message);
@@ -102,47 +107,99 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
     }
   };
 
-  const tekSil = async () => {
-    if (!window.confirm('Bu katılımcı silinsin mi? Tamamlandı ise hakediş korunacak.')) return;
+  // ---- SİLME (veritabanı fonksiyonu ile) ----
+  const seanslariSil = async (ids, mesaj) => {
+    if (!window.confirm(mesaj)) return;
     setLoading(true);
-    try {
-      if (randevu.durum !== 'tamamlandı') {
-        await supabase.from('egitmen_kazanc_hareketleri').update({ randevu_id: null }).eq('randevu_id', randevu.id);
-        await supabase.from('randevular').delete().eq('id', randevu.id);
-      } else {
-        // Tamamlanmışsa kazancı koru, sadece null'la
-        await supabase.from('egitmen_kazanc_hareketleri').update({ randevu_id: null }).eq('randevu_id', randevu.id);
-        await supabase.from('randevular').delete().eq('id', randevu.id);
-      }
-      if (onSuccess) onSuccess();
-      onClose();
-    } catch (e) {
-      setHata(e.message);
-    } finally {
-      setLoading(false);
+    setHata(null);
+    const { data, error } = await supabase.rpc('studio_g_seanslari_sil', { p_ids: ids });
+    setLoading(false);
+    if (error) {
+      setHata(error.message.includes('yöneticiye') ? 'Silme işlemini yalnızca yönetici yapabilir.' : error.message);
+      return;
     }
+    alert(
+      `✅ Silindi.\n\n` +
+      `• ${data.seans} seans silindi\n` +
+      (data.iade > 0 ? `• ${data.iade} seans hakkı pakete iade edildi\n` : '') +
+      (data.kazanc > 0 ? `• ${tl(data.kazanc)} TL eğitmen hakedişi silindi\n` : '')
+    );
+    onSuccess && onSuccess();
+    onClose();
   };
 
+  const notMetni =
+    `\n\nNot:\n` +
+    `• Sadece bu tarihteki seans silinir, diğer haftalar kalır.\n` +
+    `• Tamamlanmış seans silinirse eğitmen hakedişi silinir ve hak pakete iade edilir.\n` +
+    `• Paket ve ödemeler silinmez (tamamı için Müşteri kartı → Aktif Paketler → Sil).\n\n` +
+    `Bu işlem geri alınamaz. Devam edilsin mi?`;
+
+  const tekSil = () =>
+    seanslariSil([randevu.id], `${randevu.musteriler?.adi || 'Müşteri'} için bu seans silinecek.` + notMetni);
+
+  const grupSeansiSil = () =>
+    seanslariSil(
+      grupRandevular.map((g) => g.id),
+      `Bu saatteki grup seansı TÜM katılımcılar için (${grupRandevular.length} kişi) silinecek.` + notMetni
+    );
+
+  // ---- GRUBA EKLE ----
   const grubaEkle = async () => {
     if (!yeniMusteriId) return;
-    if (grupRandevular.length >= kapasite) { setHata('Kontenjan dolu!'); return; }
+    if (grupRandevular.length >= kapasite) return setHata('Kontenjan dolu!');
+    if (grupRandevular.some((g) => g.musteri_id === yeniMusteriId)) return setHata('Bu müşteri zaten grupta.');
     setLoading(true);
-    const { error } = await supabase.from('randevular').insert([{
-      musteri_id: yeniMusteriId,
-      egitmen_id: randevu.egitmen_id,
-      hizmet_id: randevu.hizmet_id,
-      baslangic_saati: randevu.baslangic_saati,
-      bitis_saati: randevu.bitis_saati,
-      durum: 'planlandı',
-      grup_id: randevu.grup_id,
-    }]);
-    if (error) setHata(error.message);
-    else { setYeniMusteriId(''); fetchGrup(); if (onSuccess) onSuccess(); }
-    setLoading(false);
+    setHata(null);
+    try {
+      // Müşterinin bu hizmet için boşta hakkı olan paketi
+      const { data: adaylar } = await supabase
+        .from('musteri_paketleri')
+        .select('id, kalan_seans')
+        .eq('musteri_id', yeniMusteriId)
+        .eq('hizmet_id', randevu.hizmet_id)
+        .eq('durum', true)
+        .gt('kalan_seans', 0)
+        .order('olusturma_tarihi', { ascending: true });
+
+      let paketId = null;
+      for (const p of adaylar || []) {
+        const { count } = await supabase
+          .from('randevular')
+          .select('id', { count: 'exact', head: true })
+          .eq('paket_id', p.id)
+          .eq('durum', 'planlandı');
+        if (p.kalan_seans - (count || 0) >= 1) { paketId = p.id; break; }
+      }
+      if (!paketId) {
+        throw new Error('Bu müşterinin bu ders için boşta seans hakkı yok. Önce "Yeni Randevu" ile paket oluşturun.');
+      }
+
+      const { error } = await supabase.from('randevular').insert([{
+        musteri_id: yeniMusteriId,
+        egitmen_id: randevu.egitmen_id,
+        hizmet_id: randevu.hizmet_id,
+        paket_id: paketId,
+        seri_id: genUUID(),
+        grup_id: randevu.grup_id,
+        baslangic_saati: randevu.baslangic_saati,
+        bitis_saati: randevu.bitis_saati,
+        durum: 'planlandı',
+      }]);
+      if (error) throw error;
+
+      setYeniMusteriId('');
+      await fetchGrup();
+      onSuccess && onSuccess();
+    } catch (e) {
+      setHata(e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const whatsapp = (tel, ad) => {
-    let c = tel.replace(/\D/g, '');
+    let c = (tel || '').replace(/\D/g, '');
     if (c.startsWith('0')) c = c.substring(1);
     if (!c.startsWith('90')) c = '90' + c;
     window.open(`https://wa.me/${c}?text=${encodeURIComponent(`Merhaba ${ad}, Studio G'den yazıyoruz.`)}`, '_blank');
@@ -159,12 +216,12 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
             <X className="w-5 h-5 text-slate-400" />
           </button>
         </div>
+
         <div className="mt-3 space-y-3 text-xs">
           {hata && (
-            <div className="p-2 bg-red-50 text-red-600 rounded text-[11px] font-bold border border-red-100">
-              {hata}
-            </div>
+            <div className="p-2 bg-red-50 text-red-600 rounded text-[11px] font-bold border border-red-100">{hata}</div>
           )}
+
           {isGrup && (
             <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl">
               <div className="font-extrabold text-[12px] text-amber-800 mb-2">
@@ -194,13 +251,16 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
                     className="flex-1 px-2 py-1.5 border rounded-lg bg-white font-bold text-[11px]"
                   >
                     <option value="">Müşteri seç</option>
-                    {musteriler.map((m) => (
-                      <option key={m.id} value={m.id}>{m.adi}</option>
-                    ))}
+                    {musteriler
+                      .filter((m) => !grupRandevular.some((g) => g.musteri_id === m.id))
+                      .map((m) => (
+                        <option key={m.id} value={m.id}>{m.adi}</option>
+                      ))}
                   </select>
                   <button
                     onClick={grubaEkle}
-                    className="px-3 py-1.5 bg-[#5b46f5] text-white rounded-lg font-extrabold text-[11px]"
+                    disabled={loading}
+                    className="px-3 py-1.5 bg-[#5b46f5] text-white rounded-lg font-extrabold text-[11px] disabled:opacity-50"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -208,10 +268,14 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
               )}
             </div>
           )}
+
           <div className="bg-slate-50 p-3 rounded-xl text-left">
             <div className="font-extrabold text-[14px] text-slate-900">{randevu.musteriler?.adi}</div>
-            <div className="font-bold text-slate-600">{randevu.hizmetler?.adi} • {randevu.kullanicilar?.adi}</div>
+            <div className="font-bold text-slate-600">
+              {randevu.hizmetler?.adi} {randevu.kullanicilar?.adi ? `• ${randevu.kullanicilar.adi}` : ''}
+            </div>
           </div>
+
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="font-extrabold text-slate-900">Tarih</label>
@@ -232,6 +296,7 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
               />
             </div>
           </div>
+
           <div>
             <label className="font-extrabold text-slate-900">Eğitmen</label>
             <select
@@ -244,6 +309,7 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
               ))}
             </select>
           </div>
+
           <div>
             <label className="font-extrabold text-slate-900">Durum</label>
             <select
@@ -256,35 +322,18 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
               <option value="iptal edildi">İptal Edildi</option>
             </select>
             <p className="text-[10px] text-slate-500 mt-1">
-              Tamamlandı yapınca seans düşer ve eğitmen kazancı eklenir. Silince kazanç korunur.
+              Tamamlandı: seans düşer, eğitmen hakedişi eklenir. İptal: seans düşer, hakediş eklenmez.
+              Planlandı'ya geri alınırsa seans iade edilir.
             </p>
           </div>
-          <div className="flex gap-2 pt-2">
-            {isGrup ? (
-              <button
-                onClick={tumSeanslariSil}
-                disabled={loading}
-                className="flex-1 py-3 bg-red-600 text-white rounded-xl font-extrabold text-[11px]"
-              >
-                Tüm Seansları Sil
-              </button>
-            ) : (
-              <button
-                onClick={tekSil}
-                disabled={loading}
-                className="flex-1 py-3 bg-red-50 text-red-600 rounded-xl font-extrabold"
-              >
-                Sil
-              </button>
-            )}
-            <button
-              onClick={guncelle}
-              disabled={loading}
-              className="flex-[2] py-3 bg-[#5b46f5] text-white rounded-xl font-extrabold"
-            >
-              {loading ? 'Kaydediliyor...' : 'Güncelle'}
-            </button>
-          </div>
+
+          <button
+            onClick={guncelle}
+            disabled={loading}
+            className="w-full py-3 bg-[#5b46f5] text-white rounded-xl font-extrabold disabled:opacity-60"
+          >
+            {loading ? 'Kaydediliyor...' : 'Güncelle'}
+          </button>
         </div>
       </div>
     </div>
