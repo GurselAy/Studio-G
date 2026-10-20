@@ -78,7 +78,7 @@ export default function DigerView({ userRole }) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#f6f5ff] overflow-y-auto">
+    <div className="flex flex-col h-full bg-[#f59a00] overflow-y-auto">
       <div className="bg-gradient-to-br from-[#a78bfa] via-[#8b5cf6] to-[#6366f1] pt-8 pb-12 px-4 text-center">
         <div className="w-16 h-16 bg-white/25 rounded-full flex items-center justify-center mx-auto">
           <span className="text-3xl text-white font-extrabold">
@@ -161,7 +161,7 @@ export default function DigerView({ userRole }) {
             <span className="text-[14px] font-extrabold text-red-600">Çıkış Yap</span>
           </button>
         </div>
-        <div className="text-center text-[11px] font-bold text-slate-300 py-2">Studio G v2.0.0</div>
+        <div className="text-center text-[11px] font-bold text-slate-300 py-2">Studio G v1.0.0</div>
       </div>
     </div>
   );

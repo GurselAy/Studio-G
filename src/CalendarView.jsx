@@ -63,7 +63,11 @@ export default function CalendarView() {
     <div className="flex flex-col h-screen bg-slate-50 max-w-md mx-auto shadow-2xl overflow-hidden">
       <div className="bg-white px-4 py-3 flex justify-between items-center border-b">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-gradient-to-br from-[#7c3aed] to-[#4f46e5] rounded-xl flex items-center justify-center text-white font-extrabold">G</div>
+          <img
+            src="/studio-g-logo.png"
+            alt="Studio G logosu"
+            className="w-9 h-9 rounded-md object-cover"
+          />
           <span className="font-extrabold text-[16px]">Studio G</span>
         </div>
         <button
@@ -73,7 +77,6 @@ export default function CalendarView() {
           + Randevu
         </button>
       </div>
-
       {(aktifSekme === 'takvim' || aktifSekme === 'ajanda') && (
         <WeekHeader secilenTarih={secilenTarih} setSecilenTarih={setSecilenTarih} userName={userName} />
       )}
