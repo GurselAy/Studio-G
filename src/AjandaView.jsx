@@ -31,7 +31,7 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
     const start = new Date(`${secilenTarih}T00:00:00+03:00`).toISOString();
     const end = new Date(`${moveDay(secilenTarih, 1)}T00:00:00+03:00`).toISOString();
     let query = supabase.from('randevular')
-      .select('id,musteri_id,hizmet_id,egitmen_id,baslangic_saati,bitis_saati,durum,grup_id,musteriler(adi,telefon),hizmetler(adi,tur,katilim_sayisi),kullanicilar(adi)')
+      .select('id,musteri_id,hizmet_id,egitmen_id,paket_id,baslangic_saati,bitis_saati,durum,grup_id,musteriler(adi,telefon),hizmetler(adi,tur,katilim_sayisi),kullanicilar(adi)')
       .gte('baslangic_saati', start).lt('baslangic_saati', end).order('baslangic_saati');
     if (userRole !== 'Admin') {
       if (!userId) { setLoading(false); return; }
@@ -81,9 +81,12 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
 
   const paketFor = (r) => {
     const packages = paketMap[`${r.musteri_id}_${r.hizmet_id}`] || [];
-    // Existing schema has no randevular.paket_id; match customer + service.
-    return packages.find((p) => Number(p.ucret) > Number(p.odenen_tutar))
-      || packages.find((p) => p.durum && Number(p.kalan_seans) > 0) || null;
+    // Önce randevunun kendi paketi (paket_id), yoksa eski yöntemle eşleştir.
+    const exact = r.paket_id ? packages.find((p) => p.id === r.paket_id) : null;
+    return exact
+      || packages.find((p) => Number(p.ucret) > Number(p.odenen_tutar))
+      || packages.find((p) => p.durum && Number(p.kalan_seans) > 0)
+      || null;
   };
   const borrow = (p) => Math.max(0, Number(p?.ucret || 0) - Number(p?.odenen_tutar || 0));
   const pay = (r) => {
@@ -142,13 +145,16 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
               <span className={`flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-extrabold ${badge}`}><Clock className="w-3 h-3" />{time(first.baslangic_saati)} - {time(first.bitis_saati)}</span>
               <div className="flex items-center gap-1"><span className="rounded-full px-2 py-0.5 text-[9px] font-bold text-white" style={{ backgroundColor: COLORS[trainerIndex < 0 ? 0 : trainerIndex % COLORS.length] }}>{first.kullanicilar?.adi?.split(' ')[0]}</span><span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${badge}`}>{label}</span></div>
             </div>
-            <div className="mt-2 text-[11px] font-bold text-slate-600">{first.hizmetler?.adi} {isGroup ? `Grup ${group.length}/${first.hizmetler?.katilim_sayisi || 1}` : 'Bireysel'}</div>
+            <div className="mt-2 text-[11px] font-bold text-slate-600">
+              {first.hizmetler?.adi} {isGroup ? `Grup ${group.length}/${first.hizmetler?.katilim_sayisi || 1}` : 'Bireysel'}
+              {isGroup && paketFor(first) && <span className="text-indigo-700"> Seans: {paketFor(first).kalan_seans}/{paketFor(first).toplam_seans}</span>}
+            </div>
             <div className="mt-2 space-y-1">
               {group.map((r) => {
                 const paket = paketFor(r);
                 const debt = borrow(paket);
                 return <div key={r.id} className="flex items-center justify-between gap-2 py-1 border-t border-slate-50">
-                  <div className="min-w-0"><div className="text-xs font-extrabold truncate">{r.musteriler?.adi || 'Müşteri'}</div>{paket && <div className="text-[10px] text-indigo-700">{paket.kalan_seans}/{paket.toplam_seans} seans</div>}</div>
+                  <div className="min-w-0"><div className="text-xs font-extrabold truncate">{r.musteriler?.adi || 'Müşteri'}</div>{!isGroup && paket && <div className="text-[10px] text-indigo-700">{paket.kalan_seans}/{paket.toplam_seans} seans</div>}</div>
                   <div className="flex items-center gap-1 shrink-0">
                     {debt > 0 && <button onClick={() => pay(r)} className="px-2 py-1 text-[10px] font-extrabold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-1"><CreditCard className="w-3 h-3" />{money(debt)} TL Alacak</button>}
                     <a href={`tel:${r.musteriler?.telefon || ''}`} className="w-6 h-6 bg-slate-50 border rounded-full flex items-center justify-center"><Phone className="w-3 h-3" /></a>

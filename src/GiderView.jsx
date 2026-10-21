@@ -9,15 +9,12 @@ const GENEL_KATEGORILER = [
 
 export default function GiderView() {
   const [list, setList] = useState([]);
-  const [egitmenler, setEgitmenler] = useState([]);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     kategori: 'Kira',
-    egitmen_id: '',
     tutar: '',
     aciklama: '',
     tarih: new Date().toISOString().slice(0, 10),
-    selectValue: 'GENEL|Kira',
   });
 
   useEffect(() => { getir(); }, []);
@@ -28,25 +25,6 @@ export default function GiderView() {
       .select('*, kullanicilar(adi)')
       .order('tarih', { ascending: false });
     if (data) setList(data);
-    const { data: eg } = await supabase
-      .from('kullanicilar')
-      .select('id,adi')
-      .order('adi');
-    if (eg) setEgitmenler(eg);
-  };
-
-  const handleSelect = (e) => {
-    const val = e.target.value;
-    const sepIdx = val.indexOf('|');
-    if (sepIdx === -1) return;
-    const prefix = val.substring(0, sepIdx);
-    const rest = val.substring(sepIdx + 1);
-    if (prefix === 'GENEL') {
-      setForm({ ...form, selectValue: val, kategori: rest, egitmen_id: '' });
-    } else if (prefix === 'EGITMEN') {
-      const egt = egitmenler.find((x) => x.id === rest);
-      setForm({ ...form, selectValue: val, kategori: egt ? egt.adi : rest, egitmen_id: rest });
-    }
   };
 
   const ekle = async (e) => {
@@ -56,13 +34,13 @@ export default function GiderView() {
       aciklama: form.aciklama,
       tutar: parseFloat(form.tutar) || 0,
       tarih: form.tarih,
-      egitmen_id: form.egitmen_id || null,
+      egitmen_id: null,
     }]);
     if (error) { alert(error.message); return; }
     setOpen(false);
     setForm({
-      kategori: 'Kira', egitmen_id: '', tutar: '', aciklama: '',
-      tarih: new Date().toISOString().slice(0, 10), selectValue: 'GENEL|Kira',
+      kategori: 'Kira', tutar: '', aciklama: '',
+      tarih: new Date().toISOString().slice(0, 10),
     });
     getir();
   };
@@ -122,20 +100,13 @@ export default function GiderView() {
               <div>
                 <label className="text-xs font-extrabold">Kategori</label>
                 <select
-                  value={form.selectValue}
-                  onChange={handleSelect}
+                  value={form.kategori}
+                  onChange={(e) => setForm({ ...form, kategori: e.target.value })}
                   className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold"
                 >
-                  <optgroup label="Genel Giderler">
-                    {GENEL_KATEGORILER.map((k) => (
-                      <option key={k} value={`GENEL|${k}`}>{k}</option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Eğitmenler">
-                    {egitmenler.map((eg) => (
-                      <option key={eg.id} value={`EGITMEN|${eg.id}`}>{eg.adi}</option>
-                    ))}
-                  </optgroup>
+                  {GENEL_KATEGORILER.map((k) => (
+                    <option key={k} value={k}>{k}</option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -154,7 +125,7 @@ export default function GiderView() {
               <div>
                 <label className="text-xs font-extrabold">Açıklama</label>
                 <input
-                  placeholder="Maaş, prim detayı..."
+                  placeholder="Detay (isteğe bağlı)"
                   value={form.aciklama}
                   onChange={(e) => setForm({ ...form, aciklama: e.target.value })}
                   className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold"

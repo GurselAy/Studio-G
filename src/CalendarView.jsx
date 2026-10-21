@@ -19,6 +19,9 @@ export default function CalendarView() {
   const [modalAcik, setModalAcik] = useState(false);
   const [secilenRandevu, setSecilenRandevu] = useState(null);
   const [detayAcik, setDetayAcik] = useState(false);
+  // Detay penceresinde işlem olunca Takvim/Ajanda yeniden yüklenir
+  const [refreshKey, setRefreshKey] = useState(0);
+  const yenile = useCallback(() => setRefreshKey((k) => k + 1), []);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -81,6 +84,7 @@ export default function CalendarView() {
       <div className="flex-1 overflow-hidden">
         {aktifSekme === 'takvim' && (
           <TakvimView
+            key={`takvim-${refreshKey}`}
             secilenTarih={secilenTarih}
             setSecilenTarih={setSecilenTarih}
             egitmenler={siraliEgitmenler}
@@ -94,6 +98,7 @@ export default function CalendarView() {
         )}
         {aktifSekme === 'ajanda' && (
           <AjandaView
+            key={`ajanda-${refreshKey}`}
             secilenTarih={secilenTarih}
             setSecilenTarih={setSecilenTarih}
             secilenEgitmen={secilenEgitmen}
@@ -126,6 +131,7 @@ export default function CalendarView() {
             setDetayAcik(false);
             setSecilenRandevu(null);
           }}
+          onSuccess={yenile}
           randevu={secilenRandevu}
           egitmenler={egitmenler}
         />

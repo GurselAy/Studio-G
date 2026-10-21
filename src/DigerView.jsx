@@ -7,7 +7,17 @@ import IstatistikView from './IstatistikView.jsx';
 import GiderView from './GiderView.jsx';
 import KarZararView from './KarZararView.jsx';
 import ProfilView from './ProfilView.jsx';
-import { Mail, Phone, ChevronRight, ChartBar, Trending, Dollar, Users, Clock } from './Icons.jsx';
+import HatirlatmalarView from './HatirlatmalarView.jsx';
+import YedekView from './YedekView.jsx';
+import { Mail, Phone, ChevronRight, ChartBar, Trending, Dollar, Users, Clock, MessageSquare } from './Icons.jsx';
+
+const YedekIcon = ({ className }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
+);
 
 export default function DigerView({ userRole }) {
   const isAdmin = userRole === 'Admin';
@@ -27,6 +37,11 @@ export default function DigerView({ userRole }) {
     });
   }, []);
 
+  // Herkesin gördüğü menü
+  const menuHerkes = [
+    { id: 'hatirlatma', label: 'Hatırlatmalar', icon: MessageSquare },
+  ];
+
   const menuAdmin = [
     { id: 'hizmetler', label: 'Hizmetler', icon: Clock },
     { id: 'egitmenler', label: 'Eğitmenler', icon: Users },
@@ -34,9 +49,11 @@ export default function DigerView({ userRole }) {
     { id: 'gider', label: 'Giderler', icon: Clock },
     { id: 'karzarar', label: 'Kar / Zarar', icon: Dollar },
     { id: 'istatistik', label: 'İstatistik', icon: ChartBar },
+    { id: 'yedek', label: 'Yedek (CSV)', icon: YedekIcon },
   ];
 
-  const filteredMenu = isAdmin ? menuAdmin : [];
+  const tumMenu = [...menuHerkes, ...menuAdmin];
+  const filteredMenu = isAdmin ? tumMenu : menuHerkes;
 
   if (subTab) {
     const CompMap = {
@@ -47,6 +64,8 @@ export default function DigerView({ userRole }) {
       gider: GiderView,
       karzarar: KarZararView,
       profil: ProfilView,
+      hatirlatma: HatirlatmalarView,
+      yedek: YedekView,
     };
     const Comp = CompMap[subTab];
     if (!Comp) {
@@ -63,7 +82,7 @@ export default function DigerView({ userRole }) {
             ‹
           </button>
           <h2 className="text-[15px] font-extrabold">
-            {subTab === 'profil' ? 'Profilim' : menuAdmin.find((m) => m.id === subTab)?.label || subTab}
+            {subTab === 'profil' ? 'Profilim' : tumMenu.find((m) => m.id === subTab)?.label || subTab}
           </h2>
         </div>
         <div className="flex-1 overflow-hidden">
@@ -76,7 +95,7 @@ export default function DigerView({ userRole }) {
       </div>
     );
   }
-// <div className="bg-gradient-to-br from-[#a78bfa] via-[#8b5cf6] to-[#6366f1] pt-8 pb-12 px-4 text-center"></div>
+
   return (
     <div className="flex flex-col h-full bg-[#f6f5ff] overflow-y-auto">
       <div className="bg-[#f59a00] pt-8 pb-12 px-4 text-center">
