@@ -64,20 +64,31 @@ export default function CalendarView() {
 
   return (
     <div className="flex flex-col h-screen bg-slate-50 max-w-md mx-auto shadow-2xl overflow-hidden">
-      <div className="bg-[#f59a00] px-4 py-0 flex justify-between items-center border-b border-amber-600/30">
-        <img
-          src="/studio-g-logo.png"
-          alt="Studio G"
-          className="w-12 h-12 object-contain"
-        />
+      
+      <div className="bg-[#f59a00] px-4 py-1 flex items-center border-b border-amber-600/30">
+        <div className="relative w-20 h-14 flex items-center justify-center select-none shrink-0">
+          <span
+            className="absolute text-[64px] leading-none text-black"
+            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+          >
+            G
+          </span>
+          <span
+            className="relative z-10 text-[14px] tracking-[0.18em] text-black whitespace-nowrap bg-[#f59a00] px-0.5 leading-none"
+            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+          >
+            STUDIO'G
+          </span>
+        </div>
         <button
           onClick={() => setModalAcik(true)}
-          className="bg-[#5b46f5] text-white px-4 py-1.5 rounded-full text-xs font-extrabold"
+          className="ml-auto bg-[#5b46f5] text-white px-4 py-1.5 rounded-full text-xs font-extrabold"
         >
           + Randevu
         </button>
-      </div>     
-       {(aktifSekme === 'takvim' || aktifSekme === 'ajanda') && (
+      </div>
+
+      {(aktifSekme === 'takvim' || aktifSekme === 'ajanda') && (
         <WeekHeader secilenTarih={secilenTarih} setSecilenTarih={setSecilenTarih} userName={userName} />
       )}
 
