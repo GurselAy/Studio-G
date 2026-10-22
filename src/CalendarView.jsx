@@ -68,13 +68,13 @@ export default function CalendarView() {
       <div className="bg-[#f59a00] px-4 py-1 flex items-center border-b border-amber-600/30">
         <div className="relative w-20 h-14 flex items-center justify-center select-none shrink-0">
           <span
-            className="absolute text-[64px] leading-none text-black"
+            className="absolute text-[60px] leading-none text-black"
             style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
           >
             G
           </span>
           <span
-            className="relative z-10 text-[14px] tracking-[0.18em] text-black whitespace-nowrap bg-[#f59a00] px-0.5 leading-none"
+            className="relative z-10 text-[12px] tracking-[0.18em] text-black whitespace-nowrap bg-[#f59a00] px-0.5 leading-none"
             style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
           >
             STUDIO'G
@@ -123,7 +123,7 @@ export default function CalendarView() {
             }}
           />
         )}
-        {aktifSekme === 'musteriler' && <ClientsView userRole={userRole} />}
+        {aktifSekme === 'musteriler' && <ClientsView key={`musteriler-${refreshKey}`} userRole={userRole} />}
         {aktifSekme === 'diger' && <DigerView userRole={userRole} />}
       </div>
 
@@ -131,10 +131,11 @@ export default function CalendarView() {
         <NewAppointmentModal
           isOpen={modalAcik}
           onClose={() => setModalAcik(false)}
-          onSuccess={() => {}}
+          onSuccess={yenile}
           secilenTarih={secilenTarih}
         />
       )}
+
       {detayAcik && secilenRandevu && (
         <RandevuDetailModal
           isOpen={detayAcik}

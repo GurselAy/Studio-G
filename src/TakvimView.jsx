@@ -50,7 +50,7 @@ export default function TakvimView({
     setLoading(true);
     const { data } = await supabase
       .from('randevular')
-      .select('id, musteri_id, hizmet_id, egitmen_id, baslangic_saati, bitis_saati, durum, grup_id, musteriler(adi, telefon), hizmetler(adi, tur, katilim_sayisi)')
+      .select('id, hizmet_id, egitmen_id, seri_id, baslangic_saati, bitis_saati, durum, hizmetler(adi, tur, katilim_sayisi), randevu_katilimcilari(musteri_id, paket_id, musteriler(adi, telefon))')
       .eq('durum', 'planlandı')
       .gte('baslangic_saati', secilenTarih + 'T00:00:00')
       .lte('baslangic_saati', secilenTarih + 'T23:59:59')
@@ -82,12 +82,10 @@ export default function TakvimView({
 
   const grouped = useMemo(() => {
     const m = {};
-    (egitmenler || []).forEach((e) => (m[e.id] = {}));
+    (egitmenler || []).forEach((e) => (m[e.id] = []));
     (randevular || []).forEach((r) => {
-      if (!m[r.egitmen_id]) m[r.egitmen_id] = {};
-      const k = r.grup_id || `${r.egitmen_id}_${new Date(r.baslangic_saati).getTime()}`;
-      if (!m[r.egitmen_id][k]) m[r.egitmen_id][k] = [];
-      m[r.egitmen_id][k].push(r);
+      if (!m[r.egitmen_id]) m[r.egitmen_id] = [];
+      m[r.egitmen_id].push(r);
     });
     return m;
   }, [egitmenler, randevular]);
@@ -126,18 +124,18 @@ export default function TakvimView({
                   {slots.map((_, i) => (
                     <div key={i} className="absolute left-0 right-0 border-b" style={{ top: i * row, height: row }} />
                   ))}
-                  {Object.values(grouped[egt.id] || {}).map((g) => {
-                    const f = g[0];
+                  {(grouped[egt.id] || []).map((f) => {
                     const s = toMins(f.baslangic_saati);
                     const e = toMins(f.bitis_saati);
                     const top = ((s - start * 60) / slot) * row + 2;
                     const h = Math.max(((e - s) / slot) * row - 4, 50);
                     const isGrup = f.hizmetler?.tur === 'Grup';
                     const cap = f.hizmetler?.katilim_sayisi || 1;
-                    const names = g.map((x) => x.musteriler?.adi?.split(' ')[0]).join(', ');
+                    const katilim = f.randevu_katilimcilari || [];
+                    const names = katilim.map((x) => x.musteriler?.adi?.split(' ')[0]).join(', ');
                     return (
                       <div
-                        key={f.id + egt.id}
+                        key={f.id}
                         onClick={() => onRandevuClick(f)}
                         className="absolute left-[2px] right-[2px] bg-white border-[1.5px] rounded-[6px] px-1.5 py-1 shadow-sm overflow-hidden cursor-pointer"
                         style={{ top, height: h, borderColor: colors[idx % colors.length] }}
@@ -146,10 +144,10 @@ export default function TakvimView({
                           {fmtTime(f.baslangic_saati)} - {fmtTime(f.bitis_saati)}
                         </div>
                         <div className="text-[11px] font-extrabold truncate leading-tight mt-0.5">
-                          {isGrup ? names : f.musteriler?.adi}
+                          {isGrup ? names : (katilim[0]?.musteriler?.adi || '')}
                         </div>
                         <div className="text-[9px] truncate leading-none mt-0.5">
-                          {f.hizmetler?.adi} {isGrup ? `• Grup ${g.length}/${cap}` : ''}
+                          {f.hizmetler?.adi} {isGrup ? `• Grup ${katilim.length}/${cap}` : ''}
                         </div>
                       </div>
                     );

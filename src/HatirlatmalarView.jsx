@@ -26,13 +26,11 @@ export default function HatirlatmalarView() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [userId, setUserId] = useState(null);
 
-  // Ders hatırlatma
-  const [gunOffset, setGunOffset] = useState(2); // sizin akış: 2 gün önceden hatırlatma
+  const [gunOffset, setGunOffset] = useState(2);
   const [seanslar, setSeanslar] = useState([]);
   const [sablon, setSablon] = useState(() => localStorage.getItem(SABLON_KEY) || VARSAYILAN_SABLON);
   const [sYukleniyor, setSYukleniyor] = useState(true);
 
-  // Paket uyarıları
   const [sinir, setSinir] = useState(2);
   const [paketler, setPaketler] = useState([]);
   const [pYukleniyor, setPYukleniyor] = useState(true);
@@ -50,7 +48,6 @@ export default function HatirlatmalarView() {
     })();
   }, []);
 
-  // ---- Ders hatırlatma listesi ----
   useEffect(() => {
     if (!userId) return;
     let iptal = false;
@@ -61,50 +58,64 @@ export default function HatirlatmalarView() {
       const end = new Date(`${addDays(tarih, 1)}T00:00:00+03:00`).toISOString();
       let q = supabase
         .from('randevular')
-        .select('id, musteri_id, baslangic_saati, musteriler(adi, telefon), hizmetler(adi), kullanicilar(adi)')
+        .select('id, baslangic_saati, hizmetler(adi), kullanicilar(adi), randevu_katilimcilari(id, musteriler(adi, telefon))')
         .eq('durum', 'planlandı')
         .gte('baslangic_saati', start)
         .lt('baslangic_saati', end)
         .order('baslangic_saati');
       if (!isAdmin) q = q.eq('egitmen_id', userId);
       const { data: list } = await q;
-      if (!iptal) { setSeanslar(list || []); setSYukleniyor(false); }
+      const satirlar = [];
+      (list || []).forEach((r) => {
+        (r.randevu_katilimcilari || []).forEach((k) => {
+          satirlar.push({
+            id: k.id,
+            baslangic_saati: r.baslangic_saati,
+            hizmetler: r.hizmetler,
+            kullanicilar: r.kullanicilar,
+            musteriler: k.musteriler,
+          });
+        });
+      });
+      if (!iptal) { setSeanslar(satirlar); setSYukleniyor(false); }
     })();
     return () => { iptal = true; };
   }, [gunOffset, isAdmin, userId]);
 
-  // ---- Paketi bitmek üzere olanlar ----
   useEffect(() => {
     let iptal = false;
     (async () => {
       setPYukleniyor(true);
       const { data } = await supabase
         .from('musteri_paketleri')
-        .select('id, kalan_seans, toplam_seans, musteriler(adi, telefon), hizmetler(adi)')
+        .select('id, kalan_seans, toplam_seans, musteriler(adi, telefon, aktif), hizmetler(adi)')
         .eq('durum', true)
         .lte('kalan_seans', sinir)
         .order('kalan_seans');
-      if (!iptal) { setPaketler(data || []); setPYukleniyor(false); }
+      const liste = (data || []).filter((p) => p.musteriler?.aktif !== false);
+      if (!iptal) { setPaketler(liste); setPYukleniyor(false); }
     })();
     return () => { iptal = true; };
   }, [sinir]);
 
-  // ---- Uzun süredir gelmeyenler ----
   useEffect(() => {
     let iptal = false;
     (async () => {
       setGYukleniyor(true);
-      const [{ data: ms }, { data: rs }] = await Promise.all([
-        supabase.from('musteriler').select('id, adi, telefon').order('adi'),
+      const [{ data: ms }, { data: ks }] = await Promise.all([
+        supabase.from('musteriler').select('id, adi, telefon').eq('aktif', true).order('adi'),
         supabase
-          .from('randevular')
-          .select('musteri_id, baslangic_saati, durum')
-          .lt('baslangic_saati', new Date().toISOString())
-          .neq('durum', 'iptal edildi')
-          .order('baslangic_saati', { ascending: false }),
+          .from('randevu_katilimcilari')
+          .select('musteri_id, randevular(baslangic_saati, durum)'),
       ]);
       const son = {};
-      (rs || []).forEach((r) => { if (!son[r.musteri_id]) son[r.musteri_id] = r.baslangic_saati; });
+      (ks || []).forEach((k) => {
+        if (!k.randevular || k.randevular.durum === 'iptal edildi') return;
+        if (new Date(k.randevular.baslangic_saati) >= new Date()) return;
+        if (!son[k.musteri_id] || k.randevular.baslangic_saati > son[k.musteri_id]) {
+          son[k.musteri_id] = k.randevular.baslangic_saati;
+        }
+      });
       const sinirZaman = Date.now() - gelmeyenGun * 86400000;
       const liste = (ms || [])
         .filter((m) => { const s = son[m.id]; return !s || new Date(s).getTime() < sinirZaman; })
@@ -199,7 +210,6 @@ export default function HatirlatmalarView() {
 
         {tab === 'paket' && (
           <>
-            {/* Paketi bitmek üzere olanlar */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-[12px] font-extrabold text-slate-900 uppercase">Paketi Bitmek Üzere</h3>
@@ -236,7 +246,6 @@ export default function HatirlatmalarView() {
               )}
             </div>
 
-            {/* Uzun süredir gelmeyenler */}
             <div className="pt-1">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-[12px] font-extrabold text-slate-900 uppercase">Uzun Süredir Gelmiyor</h3>

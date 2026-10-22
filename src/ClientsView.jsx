@@ -5,6 +5,13 @@ import MusteriDetayModal from './MusteriDetayModal.jsx';
 import RandevuDetailModal from './RandevuDetailModal.jsx';
 import { Plus, Phone, MessageSquare, Search, X, Trash, CreditCard, Edit } from './Icons.jsx';
 
+function ilkHarfBuyuk(s) {
+  const t = (s || '').trim();
+  if (!t) return t;
+  if (!/^[A-Za-zÇĞİÖŞÜçğıöşü0-9]/.test(t)) return t;
+  return t.charAt(0).toLocaleUpperCase('tr-TR') + t.slice(1);
+}
+
 export default function ClientsView({ userRole }) {
   const isAdmin = userRole === 'Admin';
   const [musteriler, setMusteriler] = useState([]);
@@ -18,7 +25,7 @@ export default function ClientsView({ userRole }) {
   const [egitmenler, setEgitmenler] = useState([]);
   const [yeniAd, setYeniAd] = useState('');
   const [yeniTel, setYeniTel] = useState('');
-  const [grupDoluluk, setGrupDoluluk] = useState({}); // { paket_id: kişi sayısı }
+  const [grupDoluluk, setGrupDoluluk] = useState({});
 
   useEffect(() => { getir(); }, []);
 
@@ -30,7 +37,6 @@ export default function ClientsView({ userRole }) {
       .order('adi');
     if (data) setMusteriler(data);
 
-    // Grup paketlerinin doluluğu
     const grupPaketIds = (data || [])
       .flatMap((m) => m.musteri_paketleri || [])
       .filter((p) => p.durum && p.kalan_seans > 0 && p.hizmetler?.tur === 'Grup')
@@ -38,30 +44,28 @@ export default function ClientsView({ userRole }) {
 
     const doluluk = {};
     if (grupPaketIds.length > 0) {
-      const { data: seanslar } = await supabase
-        .from('randevular')
-        .select('paket_id, grup_id, baslangic_saati, durum')
-        .in('paket_id', grupPaketIds)
-        .order('baslangic_saati', { ascending: true });
+      const { data: kat } = await supabase
+        .from('randevu_katilimcilari')
+        .select('paket_id, randevu_id, randevular(baslangic_saati, durum)')
+        .in('paket_id', grupPaketIds);
 
-      // Her paket için sıradaki planlı seansın grup_id'si
-      const paketGrup = {};
+      const paketDers = {};
       grupPaketIds.forEach((pid) => {
-        const s = (seanslar || []).filter((r) => r.paket_id === pid);
-        const siradaki = s.find((r) => r.durum === 'planlandı') || s[s.length - 1];
-        if (siradaki?.grup_id) paketGrup[pid] = siradaki.grup_id;
+        const s = (kat || []).filter((k) => k.paket_id === pid && k.randevular)
+          .sort((a, b) => new Date(a.randevular.baslangic_saati) - new Date(b.randevular.baslangic_saati));
+        const siradaki = s.find((k) => k.randevular.durum === 'planlandı') || s[s.length - 1];
+        if (siradaki) paketDers[pid] = siradaki.randevu_id;
       });
 
-      const grupIdler = [...new Set(Object.values(paketGrup))];
-      if (grupIdler.length > 0) {
-        const { data: grupRnd } = await supabase
-          .from('randevular')
-          .select('grup_id')
-          .in('grup_id', grupIdler)
-          .neq('durum', 'iptal edildi');
+      const dersIds = [...new Set(Object.values(paketDers))];
+      if (dersIds.length > 0) {
+        const { data: hepsi } = await supabase
+          .from('randevu_katilimcilari')
+          .select('randevu_id')
+          .in('randevu_id', dersIds);
         const sayac = {};
-        (grupRnd || []).forEach((g) => { sayac[g.grup_id] = (sayac[g.grup_id] || 0) + 1; });
-        Object.entries(paketGrup).forEach(([pid, gid]) => { doluluk[pid] = sayac[gid] || 1; });
+        (hepsi || []).forEach((g) => { sayac[g.randevu_id] = (sayac[g.randevu_id] || 0) + 1; });
+        Object.entries(paketDers).forEach(([pid, rid]) => { doluluk[pid] = sayac[rid] || 1; });
       }
     }
     setGrupDoluluk(doluluk);
@@ -74,7 +78,7 @@ export default function ClientsView({ userRole }) {
   const ekle = async (e) => {
     e.preventDefault();
     if (!yeniAd || !yeniTel) return;
-    await supabase.from('musteriler').insert([{ adi: yeniAd, telefon: yeniTel }]);
+    await supabase.from('musteriler').insert([{ adi: ilkHarfBuyuk(yeniAd), telefon: yeniTel }]);
     setYeniAd(''); setYeniTel(''); setMusteriModal(false);
     getir();
   };
@@ -82,15 +86,13 @@ export default function ClientsView({ userRole }) {
   const sil = async (id, ad) => {
     if (!isAdmin) { alert('Sadece yönetici silebilir'); return; }
     if (!confirm(`${ad} silinsin mi?`)) return;
-    const { count } = await supabase.from('randevular').select('*', { count: 'exact', head: true }).eq('musteri_id', id).eq('durum', 'tamamlandı');
-    await supabase.from('randevular').delete().eq('musteri_id', id);
-    if (count === 0) {
-      await supabase.from('odeme_hareketleri').delete().eq('musteri_id', id);
-      await supabase.from('musteri_paketleri').delete().eq('musteri_id', id);
-    } else {
-      await supabase.from('odeme_hareketleri').update({ paket_id: null, musteri_id: null }).eq('musteri_id', id);
-      await supabase.from('egitmen_kazanc_hareketleri').update({ musteri_id: null }).eq('musteri_id', id);
-      await supabase.from('musteri_paketleri').delete().eq('musteri_id', id);
+    const { data: paketler } = await supabase.from('musteri_paketleri').select('id').eq('musteri_id', id);
+    for (const p of paketler || []) {
+      const { error } = await supabase.rpc('studio_g_paketi_sil', { p_paket_id: p.id });
+      if (error) {
+        alert(error.message.includes('yöneticiye') ? 'Silme işlemini yalnızca yönetici yapabilir.' : error.message);
+        return;
+      }
     }
     await supabase.from('musteriler').delete().eq('id', id);
     getir();
@@ -112,6 +114,8 @@ export default function ClientsView({ userRole }) {
   const filtreli = musteriler.filter((m) => {
     const okArama = m.adi.toLowerCase().includes(arama.toLowerCase()) || (m.telefon || '').includes(arama);
     if (!okArama) return false;
+    if (filter === 'pasif') return m.aktif === false;
+    if (m.aktif === false) return false;
     if (filter === 'borclu') return toplamBorc(m) > 0;
     return true;
   });
@@ -135,6 +139,7 @@ export default function ClientsView({ userRole }) {
         <div className="flex gap-1.5">
           <button onClick={() => setFilter('tumu')} className={`px-3 py-1 rounded-full text-[11px] font-extrabold ${filter === 'tumu' ? 'bg-slate-900 text-white' : 'bg-slate-100'}`}>Tümü</button>
           <button onClick={() => setFilter('borclu')} className={`px-3 py-1 rounded-full text-[11px] font-extrabold ${filter === 'borclu' ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-700'}`}>Borçlu</button>
+          <button onClick={() => setFilter('pasif')} className={`px-3 py-1 rounded-full text-[11px] font-extrabold ${filter === 'pasif' ? 'bg-slate-500 text-white' : 'bg-slate-100'}`}>Pasif</button>
         </div>
       </div>
 
@@ -224,7 +229,7 @@ export default function ClientsView({ userRole }) {
               <button onClick={() => setMusteriModal(false)}><X className="w-5 h-5" /></button>
             </div>
             <form onSubmit={ekle} className="mt-3 space-y-3">
-              <input required placeholder="Ad Soyad" value={yeniAd} onChange={(e) => setYeniAd(e.target.value)} className="w-full px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm" />
+              <input required placeholder="Ad Soyad" value={yeniAd} onChange={(e) => setYeniAd(ilkHarfBuyuk(e.target.value))} className="w-full px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm" />
               <input required type="tel" inputMode="numeric" pattern="[0-9]*" placeholder="Telefon 05xx (numeric)" value={yeniTel} onChange={(e) => setYeniTel(e.target.value.replace(/\D/g, ''))} className="w-full px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm" />
               <button type="submit" className="w-full py-3 bg-[#5b46f5] text-white rounded-xl font-extrabold">Kaydet</button>
             </form>
@@ -245,6 +250,7 @@ export default function ClientsView({ userRole }) {
             setOdeme({ paket, musteri: { id: detayMusteri.id, adi: detayMusteri.adi } });
             setDetayMusteri(null);
           }}
+          onSilindi={getir}
         />
       )}
 

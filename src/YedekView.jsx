@@ -43,7 +43,10 @@ const DOSYALAR = [
     ad: 'musteriler', etiket: 'Müşteriler',
     getir: async () => {
       const rows = await fetchAll('musteriler');
-        return [ ['Ad Soyad','Telefon','Kayıt Tarihi'], rows.map((m) => [m.adi, m.telefon, gun(m.kayit_tarihi)]) ];
+      return [
+        ['Ad Soyad', 'Telefon', 'Aktif', 'Kayıt Tarihi'],
+        rows.map((m) => [m.adi, m.telefon, m.aktif === false ? 'Pasif' : 'Aktif', gun(m.kayit_tarihi)]),
+      ];
     },
   },
   {
@@ -58,11 +61,15 @@ const DOSYALAR = [
   },
   {
     ad: 'randevular', etiket: 'Seanslar',
+
     getir: async () => {
-      const rows = await fetchAll('randevular', '*, musteriler(adi), hizmetler(adi, tur, katilim_sayisi), kullanicilar(adi)');
+      const rows = await fetchAll('randevular', '*, hizmetler(adi, tur, katilim_sayisi), kullanicilar(adi), randevu_katilimcilari(musteriler(adi))');
       return [
-        ['Müşteri','Hizmet','Tür','Katılımcı','Eğitmen','Başlangıç','Bitiş','Durum','Eğitmen Ücreti'],
-        rows.map((r) => [r.musteriler?.adi, r.hizmetler?.adi, r.hizmetler?.tur, r.hizmetler?.katilim_sayisi, r.kullanicilar?.adi, iso(r.baslangic_saati), iso(r.bitis_saati), r.durum, r.egitmen_ucret]),
+        ['Müşteri', 'Hizmet', 'Tür', 'Katılımcı', 'Eğitmen', 'Başlangıç', 'Bitiş', 'Durum', 'Eğitmen Ücreti'],
+        rows.map((r) => {
+          const adlar = (r.randevu_katilimcilari || []).map((k) => k.musteriler?.adi).filter(Boolean).join(', ');
+          return [adlar, r.hizmetler?.adi, r.hizmetler?.tur, r.hizmetler?.katilim_sayisi, r.kullanicilar?.adi, iso(r.baslangic_saati), iso(r.bitis_saati), r.durum, r.egitmen_ucret];
+        }),
       ];
     },
   },
@@ -76,8 +83,14 @@ const DOSYALAR = [
   {
     ad: 'egitmen_kazanc', etiket: 'Eğitmen Hakedişleri',
     getir: async () => {
-      const rows = await fetchAll('egitmen_kazanc_hareketleri', '*, kullanicilar!egitmen_kazanc_hareketleri_egitmen_id_fkey(adi), musteriler(adi)');
-      return [ ['Eğitmen','Müşteri','Tutar','Tarih'], rows.map((k) => [k.kullanicilar?.adi, k.musteriler?.adi, k.tutar, iso(k.tarih)]) ];
+      const rows = await fetchAll('egitmen_kazanc_hareketleri', '*, kullanicilar!egitmen_kazanc_hareketleri_egitmen_id_fkey(adi), randevular(randevu_katilimcilari(musteriler(adi)))');
+      return [
+        ['Eğitmen', 'Müşteri', 'Tutar', 'Tarih'],
+        rows.map((k) => {
+          const adlar = (k.randevular?.randevu_katilimcilari || []).map((x) => x.musteriler?.adi).filter(Boolean).join(', ');
+          return [k.kullanicilar?.adi, adlar, k.tutar, iso(k.tarih)];
+        }),
+      ];
     },
   },
   {

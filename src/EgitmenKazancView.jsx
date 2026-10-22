@@ -33,7 +33,7 @@ export default function EgitmenKazancView() {
     const [{ data: kazanc }, { data: od }, { data: kazancTum }, { data: odTum }] = await Promise.all([
       supabase
         .from('egitmen_kazanc_hareketleri')
-        .select('*, kullanicilar!egitmen_kazanc_hareketleri_egitmen_id_fkey(adi), musteriler(adi)')
+        .select('*, kullanicilar!egitmen_kazanc_hareketleri_egitmen_id_fkey(adi), randevular(randevu_katilimcilari(musteriler(adi)))')
         .gte('tarih', start.toISOString())
         .lt('tarih', end.toISOString())
         .order('tarih', { ascending: false }),
@@ -219,23 +219,26 @@ export default function EgitmenKazancView() {
             {detay.length === 0 ? (
               <div className="text-[11px] font-bold text-slate-400">Bu ay seans yok</div>
             ) : (
-              detay.map((k) => (
-                <div key={k.id} className="flex justify-between py-1.5 border-b last:border-0 text-[11px]">
-                  <div>
-                    <span className="font-bold text-slate-700">
-                      {k.tarih ? new Date(k.tarih).toLocaleDateString('tr-TR') : '-'}
+              detay.map((k) => {
+                const adlar = (k.randevular?.randevu_katilimcilari || []).map((x) => x.musteriler?.adi).filter(Boolean).join(', ');
+                return (
+                  <div key={k.id} className="flex justify-between py-1.5 border-b last:border-0 text-[11px]">
+                    <div>
+                      <span className="font-bold text-slate-700">
+                        {k.tarih ? new Date(k.tarih).toLocaleDateString('tr-TR') : '-'}
+                      </span>
+                      <span className="font-extrabold text-slate-900 ml-2">
+                        {k.kullanicilar?.adi?.split(' ')[0] || '?'}
+                      </span>
+                      <span className="ml-2 text-slate-500">{adlar || '-'}</span>
+                    </div>
+                    <span className="font-extrabold text-slate-900">
+                      {tl(k.tutar)} TL
                     </span>
-                    <span className="font-extrabold text-slate-900 ml-2">
-                      {k.kullanicilar?.adi?.split(' ')[0] || '?'}
-                    </span>
-                    <span className="ml-2 text-slate-500">{k.musteriler?.adi || '-'}</span>
                   </div>
-                  <span className="font-extrabold text-slate-900">
-                    {tl(k.tutar)} TL
-                  </span>
-                </div>
-              ))
-            )}
+                );
+              })  
+            )}       
           </div>
 
           {odemeler.length > 0 && (

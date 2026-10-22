@@ -143,15 +143,13 @@ export default function KarZararView() {
               </div>
               <div className="text-[14px] font-extrabold mt-1">₺{stats.gider.toLocaleString('tr-TR')}</div>
             </div>
-            <div
-              className={`${
-                stats.net >= 0 ? 'bg-[#5b46f5]' : 'bg-[#ef4444]'
-              } p-3 rounded-2xl text-center text-white shadow`}
-            >
-              <div className="text-[10px] font-bold opacity-80 flex items-center justify-center gap-1">
+            <div className={`${stats.net >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'} p-3 rounded-2xl border text-center shadow-sm`}>
+              <div className={`text-[10px] font-bold ${stats.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                 {stats.net >= 0 ? 'KAR' : 'ZARAR'}
               </div>
-              <div className="text-[14px] font-extrabold mt-1">₺{Math.abs(stats.net).toLocaleString('tr-TR')}</div>
+              <div className={`text-[14px] font-extrabold mt-1 ${stats.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                ₺{Math.abs(stats.net).toLocaleString('tr-TR')}
+              </div>
             </div>
           </div>
           <div className="p-3">
@@ -180,8 +178,8 @@ export default function KarZararView() {
             </div>
           </div>
         </>
-      ) : (
-        <div className="p-3 space-y-2">
+      ) : 
+      ( <div className="p-3 space-y-2">
           {aylikDetay.map((m, i) => (
             <div key={i} className="bg-white p-3 rounded-xl border flex justify-between items-center">
               <div className="text-left">

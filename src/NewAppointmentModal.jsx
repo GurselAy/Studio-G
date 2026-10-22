@@ -14,14 +14,21 @@ function genUUID() {
 const tarihSaatYazi = (d) =>
   `${d.toLocaleDateString('tr-TR')} ${d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`;
 
+function ilkHarfBuyuk(s) {
+  const t = (s || '').trim();
+  if (!t) return t;
+  if (!/^[A-Za-zÇĞİÖŞÜçğıöşü0-9]/.test(t)) return t;
+  return t.charAt(0).toLocaleUpperCase('tr-TR') + t.slice(1);
+}
+
 // Paketin henüz takvime yerleştirilmemiş hakkı = kalan - planlı seanslar
 async function planlanabilirHak(paket) {
-  const { count } = await supabase
-    .from('randevular')
-    .select('id', { count: 'exact', head: true })
-    .eq('paket_id', paket.id)
-    .eq('durum', 'planlandı');
-  return paket.kalan_seans - (count || 0);
+  const { data } = await supabase
+    .from('randevu_katilimcilari')
+    .select('id, randevular(durum)')
+    .eq('paket_id', paket.id);
+  const planli = (data || []).filter((k) => k.randevular?.durum === 'planlandı').length;
+  return paket.kalan_seans - planli;
 }
 
 export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secilenTarih }) {
@@ -69,7 +76,7 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
   }, [secilenMusteri, secilenHizmet, yeniMusteriModu]);
 
   const formVerileriniGetir = async () => {
-    const { data: m } = await supabase.from('musteriler').select('*').order('adi');
+    const { data: m } = await supabase.from('musteriler').select('*').eq('aktif', true).order('adi');
     if (m) setMusteriler(m);
     const { data: h } = await supabase.from('hizmetler').select('*').order('adi');
     if (h) {
@@ -123,7 +130,9 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
     e.preventDefault();
     setLoading(true);
     setHata(null);
-    const olusanPaketler = []; // hata olursa geri almak için
+    const olusanPaketler = [];
+    const olusanRandevuIds = [];
+    const olusanKatilimciIds = [];
 
     try {
       if (!secilenEgitmen) throw new Error('Eğitmen seçin');
@@ -134,7 +143,7 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
       let musteriIds = isGrup ? [...secilenGrupMusteriler] : [];
       if (!isGrup && secilenMusteri && !yeniMusteriModu) musteriIds = [secilenMusteri];
       if (isGrup && secilenMusteri && !yeniMusteriModu && !musteriIds.includes(secilenMusteri)) {
-        musteriIds.push(secilenMusteri); // + butonuna basmayı unuttuysa
+        musteriIds.push(secilenMusteri);
       }
       if (yeniMusteriModu) {
         if (!yeniMusteriAdi.trim() || !yeniMusteriTel.trim()) throw new Error('Müşteri adı ve telefonu zorunlu');
@@ -144,7 +153,7 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
       const kisiSayisi = musteriIds.length + (yeniMusteriModu ? 1 : 0);
       if (isGrup && kisiSayisi > kapasite) throw new Error(`Kontenjan ${kapasite} kişi`);
 
-      // ---- 2. Seans tarihleri ----
+      // ---- 2. Seans tarihleri (yeni seri için) ----
       const sure = hizmetDetay?.sure || 50;
       const [y, m, d] = tarih.split('-').map(Number);
       const [sh, sm] = saat.split(':').map(Number);
@@ -155,64 +164,118 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
         proposed.push({ start, end, basStr: start.toISOString(), endStr: end.toISOString() });
       }
 
-      // ---- 3. Çakışma kontrolü + mevcut gruba katılma ----
-      const grupIdler = [];
-      for (const p of proposed) {
-        const { data: cakisan, error: ce } = await supabase
+      // ---- 3. İlk slot: mevcut gruba katıl mı, yeni seri mi? ----
+      const first = proposed[0];
+      const { data: cakisan, error: ce } = await supabase
+        .from('randevular')
+        .select('id, seri_id, hizmet_id, baslangic_saati')
+        .eq('egitmen_id', secilenEgitmen)
+        .neq('durum', 'iptal edildi')
+        .lt('baslangic_saati', first.endStr)
+        .gt('bitis_saati', first.basStr);
+      if (ce) throw ce;
+
+      let hedefDersler = [];
+      let joinSeri = false;
+
+      if ((cakisan || []).length > 0) {
+        if (!isGrup) throw new Error(`Eğitmen ${tarihSaatYazi(first.start)} tarihinde dolu`);
+        const tek = cakisan.length === 1
+          && cakisan[0].hizmet_id === secilenHizmet
+          && new Date(cakisan[0].baslangic_saati).getTime() === first.start.getTime();
+        if (!tek) throw new Error(`Eğitmen ${tarihSaatYazi(first.start)} tarihinde başka bir derste`);
+
+        joinSeri = true;
+        const { data: seriSeans, error: se } = await supabase
           .from('randevular')
-          .select('id, grup_id, hizmet_id, baslangic_saati')
-          .eq('egitmen_id', secilenEgitmen)
-          .neq('durum', 'iptal edildi')
-          .lt('baslangic_saati', p.endStr)
-          .gt('bitis_saati', p.basStr);
-        if (ce) throw ce;
-
-        let grupId = genUUID();
-        if (cakisan.length > 0) {
-          if (!isGrup) throw new Error(`Eğitmen ${tarihSaatYazi(p.start)} tarihinde dolu`);
-          const ayniGrup = cakisan.every(
-            (r) =>
-              r.hizmet_id === secilenHizmet &&
-              r.grup_id === cakisan[0].grup_id &&
-              new Date(r.baslangic_saati).getTime() === p.start.getTime()
-          );
-          if (!ayniGrup) throw new Error(`Eğitmen ${tarihSaatYazi(p.start)} tarihinde başka bir derste`);
-          if (cakisan.length + kisiSayisi > kapasite) {
-            throw new Error(`${tarihSaatYazi(p.start)} grubu dolu! Mevcut ${cakisan.length}/${kapasite}`);
-          }
-          grupId = cakisan[0].grup_id; // mevcut gruba katıl
-        }
-        grupIdler.push(grupId);
-
-        if (musteriIds.length > 0) {
-          const { data: mBusy, error: me } = await supabase
+          .select('id, baslangic_saati, bitis_saati, durum')
+          .eq('seri_id', cakisan[0].seri_id)
+          .eq('durum', 'planlandı')
+          .order('baslangic_saati');
+        if (se) throw se;
+        hedefDersler = seriSeans || [];
+        if (hedefDersler.length === 0) throw new Error('Bu grupta eklenecek planlı seans yok');
+      } else {
+        for (const p of proposed) {
+          const { data: c, error: c2 } = await supabase
             .from('randevular')
-            .select('musteri_id')
-            .in('musteri_id', musteriIds)
+            .select('id')
+            .eq('egitmen_id', secilenEgitmen)
             .neq('durum', 'iptal edildi')
             .lt('baslangic_saati', p.endStr)
             .gt('bitis_saati', p.basStr);
-          if (me) throw me;
-          if (mBusy.length > 0) {
-            const mAdi = musteriler.find((x) => x.id === mBusy[0].musteri_id)?.adi || 'Müşteri';
-            throw new Error(`${mAdi} için ${tarihSaatYazi(p.start)} tarihinde zaten randevu var`);
+          if (c2) throw c2;
+          if ((c || []).length > 0) {
+            throw new Error(`Eğitmen ${tarihSaatYazi(p.start)} tarihinde dolu`);
+          }
+        }
+        hedefDersler = proposed.map((p) => ({
+          id: null,
+          baslangic_saati: p.basStr,
+          bitis_saati: p.endStr,
+          start: p.start,
+        }));
+      }
+
+      const gerekliSeans = hedefDersler.length;
+
+      // Kontenjan (mevcut grup)
+      if (joinSeri) {
+        const dersIds = hedefDersler.map((x) => x.id);
+        const { data: kat } = await supabase
+          .from('randevu_katilimcilari')
+          .select('randevu_id, musteri_id')
+          .in('randevu_id', dersIds);
+        const sayac = {};
+        (kat || []).forEach((k) => { sayac[k.randevu_id] = (sayac[k.randevu_id] || 0) + 1; });
+        for (const ders of hedefDersler) {
+          if ((sayac[ders.id] || 0) + kisiSayisi > kapasite) {
+            throw new Error(`${tarihSaatYazi(new Date(ders.baslangic_saati))} grubu dolu! Mevcut ${sayac[ders.id] || 0}/${kapasite}`);
+          }
+          const zaten = (kat || []).filter((k) => k.randevu_id === ders.id && musteriIds.includes(k.musteri_id));
+          if (zaten.length > 0) {
+            const mAdi = musteriler.find((x) => x.id === zaten[0].musteri_id)?.adi || 'Müşteri';
+            throw new Error(`${mAdi} zaten bu grupta`);
           }
         }
       }
 
-      // ---- 4. Yeni müşteri (kontroller geçtikten sonra) ----
+      // Müşteri çakışması
+      if (musteriIds.length > 0) {
+        const { data: mevcutKat, error: me } = await supabase
+          .from('randevu_katilimcilari')
+          .select('musteri_id, randevular(baslangic_saati, bitis_saati, durum)')
+          .in('musteri_id', musteriIds);
+        if (me) throw me;
+        for (const ders of hedefDersler) {
+          const bas = new Date(ders.baslangic_saati).getTime();
+          const bit = new Date(ders.bitis_saati).getTime();
+          const busy = (mevcutKat || []).find((k) => {
+            if (k.randevular?.durum === 'iptal edildi') return false;
+            const b = new Date(k.randevular?.baslangic_saati).getTime();
+            const e2 = new Date(k.randevular?.bitis_saati).getTime();
+            return b < bit && e2 > bas;
+          });
+          if (busy) {
+            const mAdi = musteriler.find((x) => x.id === busy.musteri_id)?.adi || 'Müşteri';
+            throw new Error(`${mAdi} için ${tarihSaatYazi(new Date(ders.baslangic_saati))} tarihinde zaten randevu var`);
+          }
+        }
+      }
+
+      // ---- 4. Yeni müşteri ----
       if (yeniMusteriModu) {
         const { data, error } = await supabase
           .from('musteriler')
-          .insert([{ adi: yeniMusteriAdi.trim(), telefon: yeniMusteriTel.trim() }])
+          .insert([{ adi: ilkHarfBuyuk(yeniMusteriAdi), telefon: yeniMusteriTel.trim() }])
           .select()
           .single();
         if (error) throw error;
         musteriIds.push(data.id);
       }
 
-      // ---- 5. Her müşteri için paket bul veya oluştur ----
-      const paketMap = {}; // { musteri_id: paket_id }
+      // ---- 5. Paket bul veya oluştur ----
+      const paketMap = {};
       const yeniPaketGereken = [];
       for (const mid of musteriIds) {
         const { data: adaylar } = await supabase
@@ -224,7 +287,7 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
           .gt('kalan_seans', 0)
           .order('olusturma_tarihi', { ascending: true });
         for (const a of adaylar || []) {
-          if ((await planlanabilirHak(a)) >= toplamSeans) {
+          if ((await planlanabilirHak(a)) >= gerekliSeans) {
             paketMap[mid] = a.id;
             break;
           }
@@ -246,8 +309,8 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
             .insert([{
               musteri_id: mid,
               hizmet_id: secilenHizmet,
-              toplam_seans: toplamSeans,
-              kalan_seans: toplamSeans,
+              toplam_seans: gerekliSeans,
+              kalan_seans: gerekliSeans,
               ucret,
               odenen_tutar: odenen,
               odeme_durumu: odemeDurumu,
@@ -268,35 +331,51 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
         }
       }
 
-      // ---- 6. Seansları oluştur ----
-      const seriId = genUUID(); // bu kaydın tüm haftaları + katılımcıları
-      const insertList = [];
-      proposed.forEach((p, i) => {
+      // ---- 6. Dersler + katılımcılar ----
+      let dersIds = hedefDersler.map((x) => x.id).filter(Boolean);
+
+      if (!joinSeri) {
+        const seriId = genUUID();
+        const insertList = proposed.map((p) => ({
+          egitmen_id: secilenEgitmen,
+          hizmet_id: secilenHizmet,
+          seri_id: seriId,
+          baslangic_saati: p.basStr,
+          bitis_saati: p.endStr,
+          durum: 'planlandı',
+          yinelenen: toplamSeans > 1,
+          tekrar_sayisi: toplamSeans > 1 ? toplamSeans : null,
+          tekrar_araligi: toplamSeans > 1 ? 'Hafta' : null,
+          egitmen_ucret: 0,
+        }));
+        const { data: dersler, error } = await supabase.from('randevular').insert(insertList).select('id');
+        if (error) throw error;
+        dersIds = (dersler || []).map((x) => x.id);
+        olusanRandevuIds.push(...dersIds);
+      }
+
+      const katilimList = [];
+      for (const rid of dersIds) {
         for (const mid of musteriIds) {
-          insertList.push({
-            musteri_id: mid,
-            egitmen_id: secilenEgitmen,
-            hizmet_id: secilenHizmet,
-            paket_id: paketMap[mid],
-            seri_id: seriId,
-            grup_id: grupIdler[i],
-            baslangic_saati: p.basStr,
-            bitis_saati: p.endStr,
-            durum: 'planlandı',
-            yinelenen: toplamSeans > 1,
-            tekrar_sayisi: toplamSeans > 1 ? toplamSeans : null,
-            tekrar_araligi: toplamSeans > 1 ? 'Hafta' : null,
-            egitmen_ucret: 0, // trigger otomatik dolduruyor
-          });
+          katilimList.push({ randevu_id: rid, musteri_id: mid, paket_id: paketMap[mid] });
         }
-      });
-      const { error } = await supabase.from('randevular').insert(insertList);
-      if (error) throw error;
+      }
+      const { data: katilan, error: ke } = await supabase
+        .from('randevu_katilimcilari')
+        .insert(katilimList)
+        .select('id');
+      if (ke) throw ke;
+      olusanKatilimciIds.push(...(katilan || []).map((x) => x.id));
 
       onSuccess();
       onClose();
     } catch (err) {
-      // Yarım kalan paketleri geri al (yönetici yetkisiyle çalışır)
+      if (olusanKatilimciIds.length > 0) {
+        await supabase.from('randevu_katilimcilari').delete().in('id', olusanKatilimciIds);
+      }
+      if (olusanRandevuIds.length > 0) {
+        await supabase.rpc('studio_g_seanslari_sil', { p_ids: olusanRandevuIds });
+      }
       for (const pid of olusanPaketler) {
         await supabase.rpc('studio_g_paketi_sil', { p_paket_id: pid });
       }
@@ -355,7 +434,7 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
               <div className="space-y-2 bg-slate-50 p-2 rounded-xl">
                 <input
                   value={yeniMusteriAdi}
-                  onChange={(e) => setYeniMusteriAdi(e.target.value)}
+                  onChange={(e) => setYeniMusteriAdi(ilkHarfBuyuk(e.target.value))}
                   placeholder="Ad Soyad"
                   className="w-full px-3 py-2.5 text-xs border rounded-xl font-bold"
                 />
@@ -505,9 +584,6 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
                 {new Date(tarih + 'T00:00:00').toLocaleDateString('tr-TR', { weekday: 'long' })} saat {saat}'e seanslar oluşturulacak.
               </p>
             )}
-            <p className="text-[10px] font-bold text-emerald-700 bg-emerald-50 p-2 rounded-lg border border-emerald-200">
-              ✓ Eğitmen seans ücreti otomatik hesaplanır
-            </p>
           </div>
 
           <button

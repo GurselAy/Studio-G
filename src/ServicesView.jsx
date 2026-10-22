@@ -2,6 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient.js';
 import { Plus, Clock, Trash, X } from './Icons.jsx';
 
+function ilkHarfBuyuk(s) {
+  const t = (s || '').trim();
+  if (!t) return t;
+  if (!/^[A-Za-zÇĞİÖŞÜçğıöşü0-9]/.test(t)) return t;
+  return t.charAt(0).toLocaleUpperCase('tr-TR') + t.slice(1);
+}
+
 export default function ServicesView() {
   const [hizmetler, setHizmetler] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,14 +21,20 @@ export default function ServicesView() {
   useEffect(() => { getir(); }, []);
   const getir = async () => {
     setLoading(true);
-    const { data } = await supabase.from('hizmetler').select('*').order('adi');
+
+    const { data } = await supabase
+      .from('hizmetler')
+      .select('*')
+      .order('adi', { ascending: true })
+      .order('tur', { ascending: true })
+      .order('katilim_sayisi', { ascending: true });
     if (data) setHizmetler(data);
     setLoading(false);
   };
   const kaydet = async (e) => {
     e.preventDefault();
     const { error } = await supabase.from('hizmetler').insert([{
-      adi,
+      adi: ilkHarfBuyuk(adi),
       tur,
       sure: parseInt(sure) || 50,
       katilim_sayisi: parseInt(kapasite) || 1,
@@ -100,9 +113,9 @@ export default function ServicesView() {
                 <label className="text-xs font-extrabold text-slate-900">Ders Adı</label>
                 <input
                   required
-                  placeholder="Örn: Reformer Pilates"
+                  placeholder="Örn: Pilates"
                   value={adi}
-                  onChange={(e) => setAdi(e.target.value)}
+                  onChange={(e) => setAdi(ilkHarfBuyuk(e.target.value))}
                   className="w-full mt-1 px-3 py-2.5 bg-slate-50 border rounded-xl text-sm font-bold"
                 />
               </div>

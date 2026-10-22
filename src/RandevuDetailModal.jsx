@@ -5,13 +5,13 @@ import { X, Plus } from './Icons.jsx';
 const pad = (n) => String(n).padStart(2, '0');
 const tl = (n) => parseFloat(n || 0).toLocaleString('tr-TR');
 
-function genUUID() {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
+async function planlanabilirHak(paket) {
+  const { data } = await supabase
+    .from('randevu_katilimcilari')
+    .select('id, randevular(durum)')
+    .eq('paket_id', paket.id);
+  const planli = (data || []).filter((k) => k.randevular?.durum === 'planlandı').length;
+  return paket.kalan_seans - planli;
 }
 
 export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess, egitmenler = [] }) {
@@ -25,8 +25,6 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
   const [musteriler, setMusteriler] = useState([]);
   const [yeniMusteriId, setYeniMusteriId] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
-  // Seçilen müşteri için: { paket: null | {id,...}, hafta: kalan hafta sayısı }
-  // undefined = kontrol sürüyor
   const [aday, setAday] = useState(undefined);
   const [paketUcreti, setPaketUcreti] = useState('');
   const [tahsilEdilen, setTahsilEdilen] = useState('');
@@ -63,7 +61,6 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
     })();
   }, []);
 
-  // Seçilen müşterinin yeterli boş hakkı olan paketi var mı?
   useEffect(() => {
     setAday(undefined);
     setPaketUcreti('');
@@ -71,13 +68,13 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
     if (!yeniMusteriId || !randevu?.hizmet_id || !seriId) return;
     let iptal = false;
     (async () => {
-      // Bu seanstan itibaren kalan hafta sayısı
       const { data: seri } = await supabase
         .from('randevular')
-        .select('baslangic_saati')
+        .select('id')
         .eq('seri_id', seriId)
-        .gte('baslangic_saati', randevu.baslangic_saati);
-      const hafta = new Set((seri || []).map((s) => s.baslangic_saati)).size || 1;
+        .gte('baslangic_saati', randevu.baslangic_saati)
+        .neq('durum', 'iptal edildi');
+      const hafta = (seri || []).length || 1;
 
       const { data: adaylar } = await supabase
         .from('musteri_paketleri')
@@ -90,12 +87,7 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
 
       let bulunan = null;
       for (const p of adaylar || []) {
-        const { count } = await supabase
-          .from('randevular')
-          .select('id', { count: 'exact', head: true })
-          .eq('paket_id', p.id)
-          .eq('durum', 'planlandı');
-        if (p.kalan_seans - (count || 0) >= hafta) { bulunan = p; break; }
+        if ((await planlanabilirHak(p)) >= hafta) { bulunan = p; break; }
       }
       if (!iptal) setAday({ paket: bulunan, hafta });
     })();
@@ -103,26 +95,27 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
   }, [yeniMusteriId, randevu, seriId]);
 
   const fetchGrup = async () => {
-    if (!randevu?.grup_id) return setGrupRandevular([]);
+    if (!randevu?.id) return setGrupRandevular([]);
     const { data } = await supabase
-      .from('randevular')
-      .select('id, musteri_id, paket_id, durum, musteriler(adi, telefon), hizmetler(adi, tur, katilim_sayisi)')
-      .eq('grup_id', randevu.grup_id)
-      .neq('durum', 'iptal edildi');
+      .from('randevu_katilimcilari')
+      .select('id, musteri_id, paket_id, musteriler(adi, telefon)')
+      .eq('randevu_id', randevu.id);
     setGrupRandevular(data || []);
   };
 
   const fetchMusteriler = async () => {
-    const { data } = await supabase.from('musteriler').select('*').order('adi');
+    const { data } = await supabase.from('musteriler').select('*').eq('aktif', true).order('adi');
     if (data) setMusteriler(data);
   };
 
   if (!isOpen || !randevu) return null;
 
-  const isGrup = randevu.hizmetler?.tur === 'Grup' || grupRandevular[0]?.hizmetler?.tur === 'Grup';
-  const kapasite = randevu.hizmetler?.katilim_sayisi || grupRandevular[0]?.hizmetler?.katilim_sayisi || 1;
+  const isGrup = randevu.hizmetler?.tur === 'Grup';
+  const kapasite = randevu.hizmetler?.katilim_sayisi || 1;
+  const baslikAdi = isGrup
+    ? grupRandevular.map((g) => g.musteriler?.adi).filter(Boolean).join(', ')
+    : (grupRandevular[0]?.musteriler?.adi || randevu.randevu_katilimcilari?.[0]?.musteriler?.adi || '');
 
-  // ---- GÜNCELLE (grupta tüm katılımcılara uygulanır) ----
   const guncelle = async () => {
     setLoading(true);
     setHata(null);
@@ -133,14 +126,6 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
       const newStart = new Date(y, m - 1, d, sh, sm, 0);
       const newEnd = new Date(newStart.getTime() + sureMs);
 
-      let ids = [randevu.id];
-      if (isGrup && randevu.grup_id) {
-        const { data: tum, error: te } = await supabase
-          .from('randevular').select('id').eq('grup_id', randevu.grup_id);
-        if (te) throw te;
-        ids = [...new Set([...(tum || []).map((x) => x.id), randevu.id])];
-      }
-
       const { error } = await supabase
         .from('randevular')
         .update({
@@ -149,7 +134,7 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
           egitmen_id: egitmenId,
           durum,
         })
-        .in('id', ids);
+        .eq('id', randevu.id);
       if (error) throw error;
 
       onSuccess && onSuccess();
@@ -161,21 +146,19 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
     }
   };
 
-  // ---- GRUPTAN AYRIL (paket + tüm seansları + ödemeler + hakediş) ----
   const gruptanAyril = async (g) => {
     if (!g.paket_id) { setHata('Bu katılımcının paket bağlantısı yok.'); return; }
     setLoading(true);
     setHata(null);
     try {
       const { data: seanslar, error: se } = await supabase
-        .from('randevular').select('durum, egitmen_ucret').eq('paket_id', g.paket_id);
+        .from('randevu_katilimcilari')
+        .select('id, randevular(durum, egitmen_ucret)')
+        .eq('paket_id', g.paket_id);
       if (se) throw se;
       const liste = seanslar || [];
-      const tamamlanan = liste.filter((s) => s.durum === 'tamamlandı').length;
-      const iptal = liste.filter((s) => s.durum === 'iptal edildi').length;
-      const hakedis = liste
-        .filter((s) => s.durum === 'tamamlandı')
-        .reduce((t, s) => t + parseFloat(s.egitmen_ucret || 0), 0);
+      const tamamlanan = liste.filter((s) => s.randevular?.durum === 'tamamlandı').length;
+      const iptal = liste.filter((s) => s.randevular?.durum === 'iptal edildi').length;
 
       const { data: odemeler, error: oe } = await supabase
         .from('odeme_hareketleri').select('tutar').eq('paket_id', g.paket_id);
@@ -184,13 +167,14 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
 
       const onay = window.confirm(
         `${g.musteriler?.adi} bu gruptan AYRILACAK.\n\nSilinecekler:\n` +
-        `• Bu derse ait tüm seansları: ${liste.length} seans\n` +
+        `• Bu müşterinin seans kayıtları: ${liste.length} seans\n` +
         `   (${tamamlanan} tamamlanan, ${liste.length - tamamlanan - iptal} planlı, ${iptal} iptal)\n` +
-        `• Ödemeler: ${tl(odeme)} TL\n` +
-        `• Eğitmen hakedişleri: ${tl(hakedis)} TL\n\n` +
-        `Diğer katılımcılar etkilenmez. Raporlar bu tutarlar kadar düşecek.\n` +
+        `• Ödemeler: ${tl(odeme)} TL\n\n` +
+        `Diğer katılımcılar etkilenmez. Ders başkalarıyla duruyorsa eğitmen hakedişi silinmez.\n` +
+        `Son kişi çıkarılırsa boş ders takvimden kalkar.\n` +
         `Bu işlem geri alınamaz. Emin misiniz?`
       );
+
       if (!onay) { setLoading(false); return; }
 
       const { data, error } = await supabase.rpc('studio_g_paketi_sil', { p_paket_id: g.paket_id });
@@ -198,14 +182,12 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
 
       alert(
         `✅ ${g.musteriler?.adi} gruptan çıkarıldı.\n\n` +
-        `• ${data.seans} seans silindi\n` +
-        `• ${tl(data.odeme)} TL ödeme silindi\n` +
-        `• ${tl(data.kazanc)} TL hakediş silindi`
+        `• ${data.seans} seans kaydı silindi\n` +
+        `• ${tl(data.odeme)} TL ödeme silindi`
       );
 
       await fetchGrup();
       onSuccess && onSuccess();
-      if (g.id === randevu.id) onClose();
     } catch (e) {
       setHata(e.message.includes('yöneticiye') ? 'Bu işlemi yalnızca yönetici yapabilir.' : e.message);
     } finally {
@@ -213,7 +195,6 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
     }
   };
 
-  // ---- GRUBA EKLE (kalan tüm haftalara) ----
   const grubaEkle = async () => {
     if (!yeniMusteriId) return;
     if (grupRandevular.length >= kapasite) return setHata('Kontenjan dolu!');
@@ -221,7 +202,6 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
     setLoading(true);
     setHata(null);
     try {
-      // 0) Seri kimliği
       let vSeri = seriId;
       if (!vSeri) {
         const { data: srow } = await supabase
@@ -230,55 +210,52 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
       }
       if (!vSeri) throw new Error('Serisi bulunamadı, tekrar deneyin.');
 
-      // 1) Bu seanstan itibaren haftalar (grup_id + saatler)
       const { data: seri, error: se } = await supabase
         .from('randevular')
-        .select('grup_id, baslangic_saati, bitis_saati')
+        .select('id, baslangic_saati, bitis_saati, durum')
         .eq('seri_id', vSeri)
-        .gte('baslangic_saati', randevu.baslangic_saati);
+        .gte('baslangic_saati', randevu.baslangic_saati)
+        .neq('durum', 'iptal edildi')
+        .order('baslangic_saati');
       if (se) throw se;
-      const haftalar = [];
-      const gorulen = new Set();
-      (seri || [])
-        .sort((a, b) => new Date(a.baslangic_saati) - new Date(b.baslangic_saati))
-        .forEach((s) => {
-          if (gorulen.has(s.baslangic_saati)) return;
-          gorulen.add(s.baslangic_saati);
-          haftalar.push(s);
-        });
+      const haftalar = seri || [];
       if (haftalar.length === 0) throw new Error('Seriye ait seans bulunamadı.');
 
-      // 2) Kontenjan kontrolü (her hafta)
-      const grupIdler = haftalar.map((h) => h.grup_id);
+      const dersIds = haftalar.map((h) => h.id);
       const { data: katilim, error: ke } = await supabase
-        .from('randevular').select('grup_id').in('grup_id', grupIdler).neq('durum', 'iptal edildi');
+        .from('randevu_katilimcilari')
+        .select('randevu_id, musteri_id')
+        .in('randevu_id', dersIds);
       if (ke) throw ke;
       const sayac = {};
-      (katilim || []).forEach((k) => { sayac[k.grup_id] = (sayac[k.grup_id] || 0) + 1; });
+      (katilim || []).forEach((k) => { sayac[k.randevu_id] = (sayac[k.randevu_id] || 0) + 1; });
       for (const h of haftalar) {
-        if ((sayac[h.grup_id] || 0) >= kapasite) {
+        if ((sayac[h.id] || 0) >= kapasite) {
           throw new Error(`${new Date(h.baslangic_saati).toLocaleDateString('tr-TR')} tarihindeki grup dolu (${kapasite}/${kapasite}).`);
+        }
+        if ((katilim || []).some((k) => k.randevu_id === h.id && k.musteri_id === yeniMusteriId)) {
+          throw new Error('Bu müşteri zaten grupta.');
         }
       }
 
-      // 3) Müşterinin çakışması (her hafta)
       const minBas = haftalar[0].baslangic_saati;
       const maxBit = haftalar.reduce((m, h) => (h.bitis_saati > m ? h.bitis_saati : m), haftalar[0].bitis_saati);
-      const { data: cakisan, error: ce } = await supabase
-        .from('randevular').select('baslangic_saati, bitis_saati')
-        .eq('musteri_id', yeniMusteriId).neq('durum', 'iptal edildi')
-        .lt('baslangic_saati', maxBit).gt('bitis_saati', minBas);
+      const { data: mevcutKat, error: ce } = await supabase
+        .from('randevu_katilimcilari')
+        .select('musteri_id, randevular(baslangic_saati, bitis_saati, durum)')
+        .eq('musteri_id', yeniMusteriId);
       if (ce) throw ce;
       for (const h of haftalar) {
-        const cakisiyor = (cakisan || []).some((x) =>
-          new Date(x.baslangic_saati) < new Date(h.bitis_saati) &&
-          new Date(x.bitis_saati) > new Date(h.baslangic_saati));
+        const cakisiyor = (mevcutKat || []).some((x) => {
+          if (x.randevular?.durum === 'iptal edildi') return false;
+          return new Date(x.randevular?.baslangic_saati) < new Date(h.bitis_saati) &&
+            new Date(x.randevular?.bitis_saati) > new Date(h.baslangic_saati);
+        });
         if (cakisiyor) {
           throw new Error(`Müşterinin ${new Date(h.baslangic_saati).toLocaleDateString('tr-TR')} tarihinde başka randevusu var.`);
         }
       }
 
-      // 4) Paket: yeterli boş hakkı olan varsa ondan, yoksa yeni oluştur
       let paketId = aday?.paket?.id || null;
       if (!paketId) {
         const ucret = parseFloat(paketUcreti) || 0;
@@ -311,19 +288,11 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
         }
       }
 
-      // 5) Kalan tüm haftalara ekle
-      const yeniSeri = genUUID();
-      const { error: ie } = await supabase.from('randevular').insert(
+      const { error: ie } = await supabase.from('randevu_katilimcilari').insert(
         haftalar.map((h) => ({
+          randevu_id: h.id,
           musteri_id: yeniMusteriId,
-          egitmen_id: randevu.egitmen_id,
-          hizmet_id: randevu.hizmet_id,
           paket_id: paketId,
-          seri_id: yeniSeri,
-          grup_id: h.grup_id,
-          baslangic_saati: h.baslangic_saati,
-          bitis_saati: h.bitis_saati,
-          durum: 'planlandı',
         }))
       );
       if (ie) throw ie;
@@ -372,7 +341,7 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
                       disabled={loading}
                       className="px-2 py-1 text-[10px] font-extrabold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg shrink-0 disabled:opacity-50"
                     >
-                      Gruptan Ayrıl
+                      Gruptan Çıkar
                     </button>
                   )}
                 </div>
@@ -439,10 +408,8 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
           )}
 
           <div className="bg-slate-50 p-3 rounded-xl text-left">
-            <div className="font-extrabold text-[14px] text-slate-900">{randevu.musteriler?.adi}</div>
-            <div className="font-bold text-slate-600">
-              {randevu.hizmetler?.adi} {randevu.kullanicilar?.adi ? `• ${randevu.kullanicilar.adi}` : ''}
-            </div>
+            <div className="font-extrabold text-[14px] text-slate-900">{baslikAdi}</div>
+            <div className="font-bold text-slate-600">{randevu.hizmetler?.adi}</div>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
@@ -492,8 +459,8 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
             </select>
             <p className="text-[10px] text-slate-500 mt-1">
               {isGrup
-                ? 'Grup randevusunda Güncelle tüm katılımcılara uygulanır. Tamamlandı: herkesin paketinden 1 seans düşer. Planlandı\'ya dönüşte seanslar iade edilir.'
-                : 'Tamamlandı: seans düşer, eğitmen hakedişi eklenir. İptal: seans düşer, hakediş eklenmez. Planlandı\'ya geri alınırsa seans iade edilir.'}
+                ? 'Saat ve durum dersin kendisine yazılır, tüm katılımcılar aynı kalır. Tamamlandı: herkesin paketinden 1 seans düşer. Planlandı\'ya dönüşte seanslar iade edilir.'
+                : 'Tamamlandı: seans düşer, hakediş eklenir. İptal: seans düşer, hakediş eklenmez. Planlandı\'ya geri alınırsa seans ve hakediş iade edilir.'}
             </p>
           </div>
 
