@@ -265,15 +265,24 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
 
       // ---- 4. Yeni müşteri ----
       if (yeniMusteriModu) {
+        const adi = ilkHarfBuyuk(yeniMusteriAdi);
+        const tel = yeniMusteriTel.trim();
+        const { data: varOlan } = await supabase
+          .from('musteriler')
+          .select('id')
+          .eq('adi', adi)
+          .eq('telefon', tel)
+          .limit(1);
+        if (varOlan?.length) throw new Error('Bu müşteri zaten kayıtlı.');
         const { data, error } = await supabase
           .from('musteriler')
-          .insert([{ adi: ilkHarfBuyuk(yeniMusteriAdi), telefon: yeniMusteriTel.trim() }])
+          .insert([{ adi, telefon: tel }])
           .select()
           .single();
         if (error) throw error;
         musteriIds.push(data.id);
       }
-
+      
       // ---- 5. Paket bul veya oluştur ----
       const paketMap = {};
       const yeniPaketGereken = [];

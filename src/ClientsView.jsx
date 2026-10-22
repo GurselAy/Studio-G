@@ -78,7 +78,18 @@ export default function ClientsView({ userRole }) {
   const ekle = async (e) => {
     e.preventDefault();
     if (!yeniAd || !yeniTel) return;
-    await supabase.from('musteriler').insert([{ adi: ilkHarfBuyuk(yeniAd), telefon: yeniTel }]);
+    const adi = ilkHarfBuyuk(yeniAd);
+    const { data: varOlan } = await supabase
+      .from('musteriler')
+      .select('id')
+      .eq('adi', adi)
+      .eq('telefon', yeniTel)
+      .limit(1);
+    if (varOlan?.length) {
+      alert('Bu müşteri zaten kayıtlı.');
+      return;
+    }
+    await supabase.from('musteriler').insert([{ adi, telefon: yeniTel }]);
     setYeniAd(''); setYeniTel(''); setMusteriModal(false);
     getir();
   };
