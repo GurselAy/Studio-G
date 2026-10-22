@@ -3,13 +3,15 @@ import { supabase } from './supabaseClient.js';
 import OdemeModal from './OdemeModal.jsx';
 import MusteriDetayModal from './MusteriDetayModal.jsx';
 import RandevuDetailModal from './RandevuDetailModal.jsx';
+import PhoneInput, { telNorm, telKaydet, telGecerli } from './PhoneInput.jsx';
 import { Plus, Phone, MessageSquare, Search, X, Trash, CreditCard, Edit } from './Icons.jsx';
 
 function ilkHarfBuyuk(s) {
-  const t = (s || '').trim();
+  const t = s || '';
   if (!t) return t;
-  if (!/^[A-Za-zÇĞİÖŞÜçğıöşü0-9]/.test(t)) return t;
-  return t.charAt(0).toLocaleUpperCase('tr-TR') + t.slice(1);
+  const first = t.charAt(0);
+  if (!/^[A-Za-zÇĞİÖŞÜçğıöşü0-9]/.test(first)) return t;
+  return first.toLocaleUpperCase('tr-TR') + t.slice(1);
 }
 
 export default function ClientsView({ userRole }) {
@@ -78,18 +80,24 @@ export default function ClientsView({ userRole }) {
   const ekle = async (e) => {
     e.preventDefault();
     if (!yeniAd || !yeniTel) return;
-    const adi = ilkHarfBuyuk(yeniAd);
-    const { data: varOlan } = await supabase
-      .from('musteriler')
-      .select('id')
-      .eq('adi', adi)
-      .eq('telefon', yeniTel)
-      .limit(1);
-    if (varOlan?.length) {
+    const adi = ilkHarfBuyuk(yeniAd).trim();
+    const tel = telKaydet(yeniTel);
+    if (!telGecerli(tel)) {
+      alert('Telefon 10 hane olmalı (5xx xxx xx xx).');
+      return;
+    }
+    const n = telNorm(tel);
+    const adiK = adi.toLocaleLowerCase('tr-TR');
+    const varOlan = (musteriler || []).some(
+      (m) =>
+        telNorm(m.telefon) === n &&
+        (m.adi || '').trim().toLocaleLowerCase('tr-TR') === adiK
+    );
+    if (varOlan) {
       alert('Bu müşteri zaten kayıtlı.');
       return;
     }
-    await supabase.from('musteriler').insert([{ adi, telefon: yeniTel }]);
+    await supabase.from('musteriler').insert([{ adi, telefon: tel }]);
     setYeniAd(''); setYeniTel(''); setMusteriModal(false);
     getir();
   };
@@ -110,7 +118,8 @@ export default function ClientsView({ userRole }) {
   };
 
   const wa = (tel) => {
-    let c = tel.replace(/\D/g, '');
+    let c = (tel || '').replace(/\D/g, '');
+    if (!c) return;
     if (c.startsWith('0')) c = c.substring(1);
     if (!c.startsWith('90')) c = '90' + c;
     window.open(`https://wa.me/${c}`, '_blank');
@@ -241,7 +250,7 @@ export default function ClientsView({ userRole }) {
             </div>
             <form onSubmit={ekle} className="mt-3 space-y-3">
               <input required placeholder="Ad Soyad" value={yeniAd} onChange={(e) => setYeniAd(ilkHarfBuyuk(e.target.value))} className="w-full px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm" />
-              <input required type="tel" inputMode="numeric" pattern="[0-9]*" placeholder="Telefon 05xx (numeric)" value={yeniTel} onChange={(e) => setYeniTel(e.target.value.replace(/\D/g, ''))} className="w-full px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm" />
+              <PhoneInput required value={yeniTel} onChange={setYeniTel} />
               <button type="submit" className="w-full py-3 bg-[#5b46f5] text-white rounded-xl font-extrabold">Kaydet</button>
             </form>
           </div>

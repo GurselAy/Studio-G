@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient.js';
+import PhoneInput, { telKaydet, telGecerli } from './PhoneInput.jsx';
 
 export default function ProfilView({ embedded, paket, musteri, onClose, onSuccess }) {
   const [user, setUser] = useState(null);
@@ -40,20 +41,20 @@ export default function ProfilView({ embedded, paket, musteri, onClose, onSucces
       const { data: { user: u } } = await supabase.auth.getUser();
       if (!u) throw new Error('Kullanıcı bulunamadı');
 
-      // 1. kullanicilar tablosunu güncelle
+      const tel = telKaydet(form.telefon);
+      if (!telGecerli(tel)) throw new Error('Telefon 10 hane olmalı (5xx xxx xx xx).');
+
       const { error: pErr } = await supabase
         .from('kullanicilar')
-        .update({ adi: form.adi, telefon: form.telefon })
+        .update({ adi: form.adi, telefon: tel })
         .eq('id', u.id);
       if (pErr) throw pErr;
 
-      // 2. E-posta değiştiyse Supabase auth'ta güncelle
       if (form.email && form.email !== user?.email && form.email !== u.email) {
         const { error: eErr } = await supabase.auth.updateUser({ email: form.email });
         if (eErr) throw eErr;
       }
 
-      // 3. Şifre değiştirilecekse
       if (newPass && newPass.length >= 6) {
         const { error: sErr } = await supabase.auth.updateUser({ password: newPass });
         if (sErr) throw sErr;
@@ -62,7 +63,6 @@ export default function ProfilView({ embedded, paket, musteri, onClose, onSucces
         throw new Error('Şifre en az 6 karakter olmalı');
       }
 
-      // Yeniden yükle
       await getProfile();
       setMsg('Profil güncellendi');
     } catch (e) {
@@ -100,15 +100,10 @@ export default function ProfilView({ embedded, paket, musteri, onClose, onSucces
           />
         </div>
         <div>
-          <label className="text-xs font-extrabold text-slate-900">Telefon (numeric)</label>
-          <input
-            type="tel"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            value={form.telefon}
-            onChange={(e) => setForm({ ...form, telefon: e.target.value.replace(/\D/g, '') })}
-            className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm"
-          />
+          <label className="text-xs font-extrabold text-slate-900">Telefon</label>
+          <div className="mt-1">
+            <PhoneInput required value={form.telefon} onChange={(v) => setForm({ ...form, telefon: v })} />
+          </div>
         </div>
         <div>
           <label className="text-xs font-extrabold text-slate-900">E-posta</label>

@@ -3,10 +3,11 @@ import { supabase } from './supabaseClient.js';
 import { Plus, Clock, Trash, X } from './Icons.jsx';
 
 function ilkHarfBuyuk(s) {
-  const t = (s || '').trim();
+  const t = s || '';
   if (!t) return t;
-  if (!/^[A-Za-zÇĞİÖŞÜçğıöşü0-9]/.test(t)) return t;
-  return t.charAt(0).toLocaleUpperCase('tr-TR') + t.slice(1);
+  const first = t.charAt(0);
+  if (!/^[A-Za-zÇĞİÖŞÜçğıöşü0-9]/.test(first)) return t;
+  return first.toLocaleUpperCase('tr-TR') + t.slice(1);
 }
 
 export default function ServicesView() {
@@ -34,7 +35,7 @@ export default function ServicesView() {
   const kaydet = async (e) => {
     e.preventDefault();
     const { error } = await supabase.from('hizmetler').insert([{
-      adi: ilkHarfBuyuk(adi),
+      adi: ilkHarfBuyuk(adi).trim(),
       tur,
       sure: parseInt(sure) || 50,
       katilim_sayisi: parseInt(kapasite) || 1,

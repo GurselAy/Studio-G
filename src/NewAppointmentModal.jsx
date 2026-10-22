@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient.js';
 import { X, Package, Plus, Trash } from './Icons.jsx';
+import PhoneInput, { telNorm, telKaydet, telGecerli } from './PhoneInput.jsx';
 
 function genUUID() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -15,13 +16,13 @@ const tarihSaatYazi = (d) =>
   `${d.toLocaleDateString('tr-TR')} ${d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`;
 
 function ilkHarfBuyuk(s) {
-  const t = (s || '').trim();
+  const t = s || '';
   if (!t) return t;
-  if (!/^[A-Za-zÇĞİÖŞÜçğıöşü0-9]/.test(t)) return t;
-  return t.charAt(0).toLocaleUpperCase('tr-TR') + t.slice(1);
+  const first = t.charAt(0);
+  if (!/^[A-Za-zÇĞİÖŞÜçğıöşü0-9]/.test(first)) return t;
+  return first.toLocaleUpperCase('tr-TR') + t.slice(1);
 }
 
-// Paketin henüz takvime yerleştirilmemiş hakkı = kalan - planlı seanslar
 async function planlanabilirHak(paket) {
   const { data } = await supabase
     .from('randevu_katilimcilari')
@@ -47,7 +48,7 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
   const [seansSayisi, setSeansSayisi] = useState('8');
   const [paketUcreti, setPaketUcreti] = useState('');
   const [tahsilEdilen, setTahsilEdilen] = useState('');
-  const [mevcutPaket, setMevcutPaket] = useState(null); // { ...paket, planlanabilir }
+  const [mevcutPaket, setMevcutPaket] = useState(null);
   const [loading, setLoading] = useState(false);
   const [hata, setHata] = useState(null);
 
@@ -109,8 +110,6 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
   const isGrup = hizmetDetay?.tur === 'Grup';
   const kapasite = hizmetDetay?.katilim_sayisi || 1;
   const toplamSeans = parseInt(seansSayisi) || 0;
-
-  // Bireysel + mevcut paketin hakkı yetiyorsa fiyat alanı gerekmez
   const paketYeterli = !isGrup && !yeniMusteriModu && mevcutPaket && mevcutPaket.planlanabilir >= toplamSeans;
 
   const grubaEkle = () => {
@@ -139,21 +138,19 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
       if (!secilenHizmet) throw new Error('Hizmet seçin');
       if (toplamSeans < 1 || toplamSeans > 50) throw new Error('Seans sayısı 1-50 arası olmalı');
 
-      // ---- 1. Müşteri listesi ----
       let musteriIds = isGrup ? [...secilenGrupMusteriler] : [];
       if (!isGrup && secilenMusteri && !yeniMusteriModu) musteriIds = [secilenMusteri];
       if (isGrup && secilenMusteri && !yeniMusteriModu && !musteriIds.includes(secilenMusteri)) {
         musteriIds.push(secilenMusteri);
       }
       if (yeniMusteriModu) {
-        if (!yeniMusteriAdi.trim() || !yeniMusteriTel.trim()) throw new Error('Müşteri adı ve telefonu zorunlu');
+        if (!yeniMusteriAdi.trim() || !yeniMusteriTel) throw new Error('Müşteri adı ve telefonu zorunlu');
       } else if (musteriIds.length === 0) {
         throw new Error(isGrup ? 'Grup için en az 1 müşteri seçin' : 'Müşteri seçin');
       }
       const kisiSayisi = musteriIds.length + (yeniMusteriModu ? 1 : 0);
       if (isGrup && kisiSayisi > kapasite) throw new Error(`Kontenjan ${kapasite} kişi`);
 
-      // ---- 2. Seans tarihleri (yeni seri için) ----
       const sure = hizmetDetay?.sure || 50;
       const [y, m, d] = tarih.split('-').map(Number);
       const [sh, sm] = saat.split(':').map(Number);
@@ -164,7 +161,6 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
         proposed.push({ start, end, basStr: start.toISOString(), endStr: end.toISOString() });
       }
 
-      // ---- 3. İlk slot: mevcut gruba katıl mı, yeni seri mi? ----
       const first = proposed[0];
       const { data: cakisan, error: ce } = await supabase
         .from('randevular')
@@ -219,7 +215,6 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
 
       const gerekliSeans = hedefDersler.length;
 
-      // Kontenjan (mevcut grup)
       if (joinSeri) {
         const dersIds = hedefDersler.map((x) => x.id);
         const { data: kat } = await supabase
@@ -240,7 +235,6 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
         }
       }
 
-      // Müşteri çakışması
       if (musteriIds.length > 0) {
         const { data: mevcutKat, error: me } = await supabase
           .from('randevu_katilimcilari')
@@ -263,17 +257,17 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
         }
       }
 
-      // ---- 4. Yeni müşteri ----
       if (yeniMusteriModu) {
-        const adi = ilkHarfBuyuk(yeniMusteriAdi);
-        const tel = yeniMusteriTel.trim();
-        const { data: varOlan } = await supabase
-          .from('musteriler')
-          .select('id')
-          .eq('adi', adi)
-          .eq('telefon', tel)
-          .limit(1);
-        if (varOlan?.length) throw new Error('Bu müşteri zaten kayıtlı.');
+        const adi = ilkHarfBuyuk(yeniMusteriAdi).trim();
+        const tel = telKaydet(yeniMusteriTel);
+        if (!telGecerli(tel)) throw new Error('Telefon 10 hane olmalı (5xx xxx xx xx).');
+        const n = telNorm(tel);
+        const adiK = adi.toLocaleLowerCase('tr-TR');
+        const { data: adaylar } = await supabase.from('musteriler').select('id, adi, telefon');
+        const varOlan = (adaylar || []).some(
+          (m) => telNorm(m.telefon) === n && (m.adi || '').trim().toLocaleLowerCase('tr-TR') === adiK
+        );
+        if (varOlan) throw new Error('Bu müşteri zaten kayıtlı.');
         const { data, error } = await supabase
           .from('musteriler')
           .insert([{ adi, telefon: tel }])
@@ -282,8 +276,7 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
         if (error) throw error;
         musteriIds.push(data.id);
       }
-      
-      // ---- 5. Paket bul veya oluştur ----
+
       const paketMap = {};
       const yeniPaketGereken = [];
       for (const mid of musteriIds) {
@@ -340,7 +333,6 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
         }
       }
 
-      // ---- 6. Dersler + katılımcılar ----
       let dersIds = hedefDersler.map((x) => x.id).filter(Boolean);
 
       if (!joinSeri) {
@@ -447,15 +439,7 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
                   placeholder="Ad Soyad"
                   className="w-full px-3 py-2.5 text-xs border rounded-xl font-bold"
                 />
-                <input
-                  value={yeniMusteriTel}
-                  onChange={(e) => setYeniMusteriTel(e.target.value.replace(/\D/g, ''))}
-                  type="tel"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  placeholder="05xx"
-                  className="w-full px-3 py-2.5 text-xs border rounded-xl font-bold"
-                />
+                <PhoneInput required value={yeniMusteriTel} onChange={setYeniMusteriTel} />
               </div>
             ) : (
               <div className="flex gap-2">

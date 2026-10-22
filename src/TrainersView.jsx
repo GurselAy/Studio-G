@@ -2,6 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { supabase, supabaseUrl, supabaseAnonKey } from './supabaseClient.js';
 import { createClient } from '@supabase/supabase-js';
 import { Plus, Trash, Edit, X, Phone, MessageSquare } from './Icons.jsx';
+import PhoneInput, { telNorm, telKaydet, telGecerli } from './PhoneInput.jsx';
+
+function ilkHarfBuyuk(s) {
+  const t = s || '';
+  if (!t) return t;
+  const first = t.charAt(0);
+  if (!/^[A-Za-zÇĞİÖŞÜçğıöşü0-9]/.test(first)) return t;
+  return first.toLocaleUpperCase('tr-TR') + t.slice(1);
+}
 
 const secondary = createClient(supabaseUrl, supabaseAnonKey, {
   auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
@@ -51,7 +60,6 @@ export default function TrainersView() {
     setHata('');
     setInfo('');
 
-    // Mevcut hizmet ücretlerini çek
     const { data: mevcut } = await supabase
       .from('egitmen_hizmet_ucretleri')
       .select('hizmet_id, ucret')
@@ -72,19 +80,37 @@ export default function TrainersView() {
     setInfo('');
 
     try {
+      const adi = ilkHarfBuyuk(form.adi).trim();
+      const tel = telKaydet(form.telefon);
+      if (!telGecerli(tel)) {
+        setHata('Telefon 10 hane olmalı (5xx xxx xx xx).');
+        return;
+      }
+      const { data: adaylar } = await supabase.from('kullanicilar').select('id, adi, telefon');
+      const adiK = adi.toLocaleLowerCase('tr-TR');
+      const n = telNorm(tel);
+      const varOlan = (adaylar || []).some((k) => {
+        if (editId && k.id === editId) return false;
+        const ayniAd = (k.adi || '').trim().toLocaleLowerCase('tr-TR') === adiK;
+        const ayniTel = telNorm(k.telefon) === n;
+        return ayniAd && ayniTel;
+      });
+      if (varOlan) {
+        setHata('Bu eğitmen zaten kayıtlı.');
+        return;
+      }
+
       let targetEgitmenId = editId;
 
       if (editId) {
-        // Düzenleme
         const { error } = await supabase.from('kullanicilar').update({
-          adi: form.adi,
-          telefon: form.telefon,
+          adi,
+          telefon: tel,
           email: form.email,
           rol: form.rol,
         }).eq('id', editId);
         if (error) throw error;
       } else {
-        // Yeni ekleme
         if (form.sifre.length < 6) {
           setHata('Şifre en az 6 karakter');
           return;
@@ -92,7 +118,7 @@ export default function TrainersView() {
         const { data, error } = await secondary.auth.signUp({
           email: form.email,
           password: form.sifre,
-          options: { data: { adi: form.adi, telefon: form.telefon, rol: form.rol } },
+          options: { data: { adi, telefon: tel, rol: form.rol } },
         });
         if (error) {
           if (error.message.includes('already registered')) {
@@ -104,8 +130,8 @@ export default function TrainersView() {
               targetEgitmenId = signIn.user.id;
               await supabase.from('kullanicilar').upsert([{
                 id: signIn.user.id,
-                adi: form.adi,
-                telefon: form.telefon,
+                adi,
+                telefon: tel,
                 email: form.email,
                 rol: form.rol,
                 sifre_hash: 'supabase_auth',
@@ -120,8 +146,8 @@ export default function TrainersView() {
           targetEgitmenId = data.user.id;
           await supabase.from('kullanicilar').upsert([{
             id: data.user.id,
-            adi: form.adi,
-            telefon: form.telefon,
+            adi,
+            telefon: tel,
             email: form.email,
             rol: form.rol,
             sifre_hash: 'supabase_auth',
@@ -129,17 +155,6 @@ export default function TrainersView() {
         }
       }
 
-      // Şifre güncellemesi (düzenleme modunda ve şifre girilmişse)
-      if (editId && form.sifre && form.sifre.length >= 6) {
-        // secondary client ile şifre güncelle
-        try {
-          await secondary.auth.signInWithPassword({ email: form.email, password: 'oldpassword' }).catch(() => {});
-        } catch (e) {}
-        // Not: Şifre güncelleme için kullanıcının mevcut şifresi gerekir
-        // Bu yüzden şifre güncellemesi şimdilik desteklenmiyor
-      }
-
-      // Hizmet ücretlerini kaydet (upsert)
       const ucretRows = hizmetler
         .map((h) => {
           const v = parseFloat(ucretler[h.id]);
@@ -149,12 +164,10 @@ export default function TrainersView() {
             ucret: isNaN(v) ? 0 : v,
           };
         })
-        .filter((r) => r.ucret > 0); // 0 olanları kaydetme
+        .filter((r) => r.ucret > 0);
 
-      // Önce mevcut ücretleri sil
       await supabase.from('egitmen_hizmet_ucretleri').delete().eq('egitmen_id', targetEgitmenId);
 
-      // Yeni ücretleri ekle
       if (ucretRows.length > 0) {
         const { error: ucretErr } = await supabase.from('egitmen_hizmet_ucretleri').insert(ucretRows);
         if (ucretErr) throw ucretErr;
@@ -187,7 +200,8 @@ export default function TrainersView() {
   };
 
   const wa = (tel) => {
-    let c = tel.replace(/\D/g, '');
+    let c = (tel || '').replace(/\D/g, '');
+    if (!c) return;
     if (c.startsWith('0')) c = c.substring(1);
     if (!c.startsWith('90')) c = '90' + c;
     window.open(`https://wa.me/${c}`, '_blank');
@@ -275,23 +289,16 @@ export default function TrainersView() {
                   required
                   placeholder="Ad Soyad"
                   value={form.adi}
-                  onChange={(e) => setForm({ ...form, adi: e.target.value })}
+                  onChange={(e) => setForm({ ...form, adi: ilkHarfBuyuk(e.target.value) })}
                   className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-extrabold text-slate-900">Telefon (numeric klavye)</label>
-                <input
-                  required
-                  type="tel"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  placeholder="0532 000 00 00"
-                  value={form.telefon}
-                  onChange={(e) => setForm({ ...form, telefon: e.target.value.replace(/\D/g, '') })}
-                  className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm"
-                />
+                <label className="text-xs font-extrabold text-slate-900">Telefon</label>
+                <div className="mt-1">
+                  <PhoneInput required value={form.telefon} onChange={(v) => setForm({ ...form, telefon: v })} />
+                </div>
               </div>
 
               <div>
