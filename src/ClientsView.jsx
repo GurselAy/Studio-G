@@ -14,6 +14,8 @@ function ilkHarfBuyuk(s) {
   return first.toLocaleUpperCase('tr-TR') + t.slice(1);
 }
 
+const tl = (n) => parseFloat(n || 0).toLocaleString('tr-TR');
+
 export default function ClientsView({ userRole }) {
   const isAdmin = userRole === 'Admin';
   const [musteriler, setMusteriler] = useState([]);
@@ -21,6 +23,9 @@ export default function ClientsView({ userRole }) {
   const [filter, setFilter] = useState('tumu');
   const [loading, setLoading] = useState(true);
   const [musteriModal, setMusteriModal] = useState(false);
+  const [duzenle, setDuzenle] = useState(null);
+  const [duzenleAd, setDuzenleAd] = useState('');
+  const [duzenleTel, setDuzenleTel] = useState('');
   const [odeme, setOdeme] = useState(null);
   const [detayMusteri, setDetayMusteri] = useState(null);
   const [detayRandevu, setDetayRandevu] = useState(null);
@@ -102,10 +107,74 @@ export default function ClientsView({ userRole }) {
     getir();
   };
 
+  const duzenleAc = (m, e) => {
+    e.stopPropagation();
+    if (!isAdmin) return;
+    setDuzenle(m);
+    setDuzenleAd(m.adi || '');
+    setDuzenleTel(m.telefon || '');
+  };
+
+  const duzenleKaydet = async (e) => {
+    e.preventDefault();
+    if (!duzenle) return;
+    const adi = ilkHarfBuyuk(duzenleAd).trim();
+    const tel = telKaydet(duzenleTel);
+    if (!adi) return;
+    if (!telGecerli(tel)) {
+      alert('Telefon 10 hane olmalı (5xx xxx xx xx).');
+      return;
+    }
+    const n = telNorm(tel);
+    const adiK = adi.toLocaleLowerCase('tr-TR');
+    const varOlan = (musteriler || []).some(
+      (m) =>
+        m.id !== duzenle.id &&
+        telNorm(m.telefon) === n &&
+        (m.adi || '').trim().toLocaleLowerCase('tr-TR') === adiK
+    );
+    if (varOlan) {
+      alert('Bu müşteri zaten kayıtlı.');
+      return;
+    }
+    const { error } = await supabase.from('musteriler').update({ adi, telefon: tel }).eq('id', duzenle.id);
+    if (error) { alert(error.message); return; }
+    setDuzenle(null);
+    getir();
+  };
+
   const sil = async (id, ad) => {
     if (!isAdmin) { alert('Sadece yönetici silebilir'); return; }
-    if (!confirm(`${ad} silinsin mi?`)) return;
-    const { data: paketler } = await supabase.from('musteri_paketleri').select('id').eq('musteri_id', id);
+
+    const { data: paketler } = await supabase
+      .from('musteri_paketleri')
+      .select('id, odenen_tutar, durum, kalan_seans, hizmetler(adi, tur)')
+      .eq('musteri_id', id);
+    const { data: kat } = await supabase
+      .from('randevu_katilimcilari')
+      .select('id, randevular(durum)')
+      .eq('musteri_id', id);
+
+    const seanslar = (kat || []).filter((k) => k.randevular);
+    const planli = seanslar.filter((s) => s.randevular.durum === 'planlandı').length;
+    const tamam = seanslar.filter((s) => s.randevular.durum === 'tamamlandı').length;
+    const iptal = seanslar.filter((s) => s.randevular.durum === 'iptal edildi').length;
+    const odemeToplam = (paketler || []).reduce((t, p) => t + parseFloat(p.odenen_tutar || 0), 0);
+    const aktifPaket = (paketler || []).filter((p) => p.durum && p.kalan_seans > 0).length;
+    const isGrup = (paketler || []).some((p) => p.hizmetler?.tur === 'Grup');
+
+    let msg = `"${ad}" KALICI olarak silinecek.\n\n`;
+    if (planli > 0) msg += `⚠️ Aktif (planlı) randevu var: ${planli} seans\n\n`;
+    msg += `Silinecekler:\n`;
+    msg += `• Paketler: ${(paketler || []).length} (${aktifPaket} aktif)\n`;
+    msg += `• Seans kayıtları: ${seanslar.length} (${planli} planlı, ${tamam} tamamlanan, ${iptal} iptal)\n`;
+    msg += `• Ödemeler: ${tl(odemeToplam)} TL\n`;
+    if (isGrup) {
+      msg += `\nℹ️ Grup: Sadece bu müşteri çıkarılır. Ders başkalarıyla duruyorsa eğitmen hakedişi silinmez.\nSon kişi ise boş ders takvimden kalkar.\n`;
+    }
+    msg += `\nBu işlem geri alınamaz. Emin misiniz?`;
+    if (!confirm(msg)) return;
+
     for (const p of paketler || []) {
       const { error } = await supabase.rpc('studio_g_paketi_sil', { p_paket_id: p.id });
       if (error) {
@@ -190,6 +259,11 @@ export default function ClientsView({ userRole }) {
                       <Phone className="w-3.5 h-3.5" />
                     </a>
                     {isAdmin && (
+                      <button onClick={(e) => duzenleAc(m, e)} className="w-7 h-7 bg-indigo-50 rounded-full flex items-center justify-center" title="Düzenle">
+                        <Edit className="w-3.5 h-3.5 text-indigo-600" />
+                      </button>
+                    )}
+                    {isAdmin && (
                       <button onClick={() => sil(m.id, m.adi)} className="w-7 h-7 bg-red-50 rounded-full flex items-center justify-center" title="Sil">
                         <Trash className="w-3.5 h-3.5 text-red-500" />
                       </button>
@@ -252,6 +326,22 @@ export default function ClientsView({ userRole }) {
               <input required placeholder="Ad Soyad" value={yeniAd} onChange={(e) => setYeniAd(ilkHarfBuyuk(e.target.value))} className="w-full px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm" />
               <PhoneInput required value={yeniTel} onChange={setYeniTel} />
               <button type="submit" className="w-full py-3 bg-[#5b46f5] text-white rounded-xl font-extrabold">Kaydet</button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {duzenle && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setDuzenle(null)}>
+          <div className="bg-white w-full max-w-sm rounded-2xl p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between border-b pb-3">
+              <h2 className="text-[15px] font-extrabold">Müşteri Düzenle</h2>
+              <button onClick={() => setDuzenle(null)}><X className="w-5 h-5" /></button>
+            </div>
+            <form onSubmit={duzenleKaydet} className="mt-3 space-y-3">
+              <input required placeholder="Ad Soyad" value={duzenleAd} onChange={(e) => setDuzenleAd(ilkHarfBuyuk(e.target.value))} className="w-full px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm" />
+              <PhoneInput required value={duzenleTel} onChange={setDuzenleTel} />
+              <button type="submit" className="w-full py-3 bg-[#5b46f5] text-white rounded-xl font-extrabold">Güncelle</button>
             </form>
           </div>
         </div>
