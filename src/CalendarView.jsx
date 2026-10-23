@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { supabase } from './supabaseClient.js';
 import TakvimView from './TakvimView.jsx';
 import AjandaView from './AjandaView.jsx';
@@ -19,7 +19,6 @@ export default function CalendarView() {
   const [modalAcik, setModalAcik] = useState(false);
   const [secilenRandevu, setSecilenRandevu] = useState(null);
   const [detayAcik, setDetayAcik] = useState(false);
-  // Detay penceresinde işlem olunca Takvim/Ajanda yeniden yüklenir
   const [refreshKey, setRefreshKey] = useState(0);
   const yenile = useCallback(() => setRefreshKey((k) => k + 1), []);
 
@@ -64,7 +63,6 @@ export default function CalendarView() {
 
   return (
     <div className="flex flex-col h-screen bg-slate-50 max-w-md mx-auto shadow-2xl overflow-hidden">
-      
       <div className="bg-[#f59a00] px-4 py-1 flex items-center border-b border-amber-600/30">
         <div className="relative w-20 h-14 flex items-center justify-center select-none shrink-0">
           <span
@@ -74,7 +72,7 @@ export default function CalendarView() {
             G
           </span>
           <span
-            className="relative z-10 text-[12px] tracking-[0.18em] text-black whitespace-nowrap bg-[#f59a00] px-0.5 leading-none"
+            className="relative z-10 text-[14px] tracking-[0.18em] text-black whitespace-nowrap bg-[#f59a00] px-0.5 leading-none"
             style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
           >
             STUDIO'G
@@ -135,7 +133,6 @@ export default function CalendarView() {
           secilenTarih={secilenTarih}
         />
       )}
-
       {detayAcik && secilenRandevu && (
         <RandevuDetailModal
           isOpen={detayAcik}
@@ -155,6 +152,18 @@ export default function CalendarView() {
 }
 
 function WeekHeader({ secilenTarih, setSecilenTarih, userName }) {
+  const tarihRef = useRef(null);
+  const tarihAc = () => {
+    const el = tarihRef.current;
+    if (!el) return;
+    try {
+      if (typeof el.showPicker === 'function') el.showPicker();
+      else el.focus();
+    } catch (_) {
+      el.focus();
+    }
+  };
+
   const todayStr = new Date().toISOString().slice(0, 10);
   const getWeekDays = (s) => {
     const date = new Date(s + 'T12:00:00');
@@ -185,9 +194,21 @@ function WeekHeader({ secilenTarih, setSecilenTarih, userName }) {
           İyi günler, <span className="text-slate-900 font-extrabold">{userName || 'Kullanıcı'}</span>
         </div>
         <div className="flex justify-between items-center mt-1">
-          <span className="text-[13px] font-extrabold capitalize">
+          <button
+            type="button"
+            onClick={tarihAc}
+            className="relative text-[13px] font-extrabold capitalize text-left"
+          >
             {gunAy} {haftagun} • {tam}
-          </span>
+            <input
+              ref={tarihRef}
+              type="date"
+              value={secilenTarih}
+              onChange={(e) => { if (e.target.value) setSecilenTarih(e.target.value); }}
+              className="sr-only"
+              tabIndex={-1}
+            />
+          </button>
           <div className="flex gap-1.5">
             <button
               onClick={() => setSecilenTarih(todayStr)}

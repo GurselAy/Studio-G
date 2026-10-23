@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from './supabaseClient.js';
-import { Lock, Mail, Dumbbell } from './Icons.jsx';
+import { Lock, Mail } from './Icons.jsx';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -24,15 +24,23 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center px-6 py-12 max-w-md mx-auto">
-      <div className="text-center mb-8">
-        <div className="inline-flex w-16 h-16 rounded-full bg-[#5b46f5] text-white items-center justify-center mb-4">
-          <Dumbbell className="w-8 h-8" />
-        </div>
-        <h2 className="text-2xl font-extrabold">Studio G</h2>
-        <p className="text-sm font-bold text-slate-500">Eğitmen ve Yönetici Portalı</p>
+    <div className="min-h-screen bg-[#f59a00] flex flex-col justify-center px-6 py-12 max-w-md mx-auto">
+      <div className="relative w-40 h-24 mx-auto flex items-center justify-center select-none -translate-y-[2cm]">
+        <span
+          className="absolute text-[112px] leading-none text-black"
+          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+        >
+          G
+        </span>
+        <span
+          className="relative z-10 text-[24px] tracking-[0.18em] text-black whitespace-nowrap bg-[#f59a00] px-1 leading-none"
+          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+        >
+          STUDIO'G
+        </span>
       </div>
-      <div className="bg-white p-6 rounded-2xl border">
+      <p className="text-center text-sm font-bold text-black/70 mb-8">Eğitmen ve Yönetici Portalı</p>
+      <div className="bg-[#f59a00] p-6 rounded-2xl border">
         <form onSubmit={handleLogin} className="space-y-4">
           {errorMsg && (
             <div className="p-3 bg-red-50 text-red-600 text-xs font-bold rounded-xl border">{errorMsg}</div>

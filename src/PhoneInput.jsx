@@ -35,7 +35,7 @@ export function telNorm(raw) {
   if (!d) return '';
   if (d.startsWith('00')) d = d.slice(2);
   if (d.startsWith('0')) d = '90' + d.slice(1);
-  return d;
+  return d.slice(0, 15);
 }
 
 export function telKaydet(raw) {
@@ -45,8 +45,9 @@ export function telKaydet(raw) {
 
 export function telGecerli(raw) {
   const n = telNorm(raw);
+  if (!n) return false;
   if (n.startsWith('90')) return n.length === 12;
-  return n.length >= 10 && n.length <= 15;
+  return n.length >= 8 && n.length <= 15;
 }
 
 function parseValue(value) {
@@ -73,11 +74,11 @@ function formatNational(dial, digits) {
 }
 
 export default function PhoneInput({ value, onChange, required }) {
-  const { dial, national } = parseValue(value);
+  const parsed = parseValue(value);
   const [acik, setAcik] = useState(false);
   const [q, setQ] = useState('');
   const wrap = useRef(null);
-  const ulke = ULKELER.find((u) => u.dial === dial) || ULKELER[0];
+  const ulke = ULKELER.find((u) => u.dial === parsed.dial) || ULKELER[0];
 
   useEffect(() => {
     const fn = (e) => {
@@ -90,20 +91,20 @@ export default function PhoneInput({ value, onChange, required }) {
   const liste = useMemo(() => {
     const s = q.trim();
     if (!s) return ULKELER;
-    return ULKELER.filter((u) => u.dial.startsWith(s));
+    return ULKELER.filter((u) => u.dial.startsWith(s) || u.ad.toLocaleLowerCase('tr-TR').includes(s.toLocaleLowerCase('tr-TR')));
   }, [q]);
 
   const ulkeSec = (u) => {
     setAcik(false);
     setQ('');
-    onChange(national ? telKaydet(u.dial + national) : '');
+    onChange(telKaydet(u.dial + parsed.national));
   };
 
   const setNational = (raw) => {
     let d = raw.replace(/\D/g, '');
     if (d.startsWith('0')) d = d.slice(1);
-    d = d.slice(0, dial === '90' ? 10 : 15);
-    onChange(d ? telKaydet(dial + d) : '');
+    d = d.slice(0, parsed.dial === '90' ? 10 : 15 - parsed.dial.length);
+    onChange(telKaydet(parsed.dial + d));
   };
 
   return (
@@ -122,8 +123,8 @@ export default function PhoneInput({ value, onChange, required }) {
             <input
               autoFocus
               value={q}
-              onChange={(e) => setQ(e.target.value.replace(/\D/g, ''))}
-              placeholder="90"
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="90 veya ülke"
               className="w-full px-2 py-2 border-b text-xs font-bold"
             />
             <div className="overflow-y-auto max-h-44">
@@ -151,8 +152,8 @@ export default function PhoneInput({ value, onChange, required }) {
         required={required}
         type="tel"
         inputMode="numeric"
-        placeholder={dial === '90' ? '5xx xxx xx xx' : 'Numara'}
-        value={formatNational(dial, national)}
+        placeholder={parsed.dial === '90' ? '5xx xxx xx xx' : 'Numara'}
+        value={formatNational(parsed.dial, parsed.national)}
         onChange={(e) => setNational(e.target.value)}
         className="flex-1 min-w-0 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm"
       />
