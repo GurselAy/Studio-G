@@ -246,28 +246,10 @@ export default function ClientsView({ userRole }) {
                 <div className="flex justify-between items-start">
                   <div className="flex-1 min-w-0">
 
-
-                    <div className="flex items-center justify-end gap-1.5 mt-1">
-                      {borc > 0 && (
-                        <button
-                          onClick={() => onOdemeClick && onOdemeClick(p)}
-                          className="text-[10px] font-extrabold bg-amber-500 text-white px-2 py-1 rounded-full"
-                        >
-                          {borc.toLocaleString('tr-TR')} TL Borç (Öde)
-                        </button>
-                      )}
-                      {isAdmin && !tamamlandi && (
-                        <button
-                          onClick={() => paketSil(p)}
-                          disabled={siliniyor === p.id}
-                          className="text-[10px] font-extrabold bg-rose-50 text-rose-600 border border-rose-200 px-2.5 py-1 rounded-full active:bg-rose-100 disabled:opacity-50"
-                        >
-                          {siliniyor === p.id ? 'Siliniyor...' : 'Sil'}
-                        </button>
-                      )}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-extrabold text-[13px] text-slate-900">{m.adi}</span>
+                      {toplam > 0 && <span className="text-[9px] font-bold rounded-full bg-rose-100 text-rose-600 px-2 py-0.5">Borçlu</span>}
                     </div>
-
-
 
                     <div className="text-[10px] font-bold text-slate-500 mt-0.5">{m.telefon || '-'}</div>
                   </div>
