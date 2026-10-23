@@ -168,6 +168,8 @@ export default function MusteriDetayModal({ musteri, onClose, onRandevuClick, on
   const paketKart = (p, tamamlandi) => {
     const borc = p.ucret - p.odenen_tutar;
     const isGrup = p.hizmetler?.tur === 'Grup';
+    // Sil butonu: SADECE yönetici + SADECE aktif (tamamlanmamış) paketlerde
+    const silGoster = isAdmin && !tamamlandi;
     return (
       <div key={p.id} className={`border p-3 rounded-xl ${tamamlandi ? 'bg-slate-50 border-slate-200' : 'bg-indigo-50 border-indigo-200'}`}>
         <div className="flex justify-between items-start gap-2">
@@ -204,7 +206,7 @@ export default function MusteriDetayModal({ musteri, onClose, onRandevuClick, on
                   {borc.toLocaleString('tr-TR')} TL Borç (Öde)
                 </button>
               )}
-              {/*isAdmin && (
+              {silGoster && (
                 <button
                   onClick={() => paketSil(p)}
                   disabled={siliniyor === p.id}
@@ -212,7 +214,7 @@ export default function MusteriDetayModal({ musteri, onClose, onRandevuClick, on
                 >
                   {siliniyor === p.id ? 'Siliniyor...' : 'Sil'}
                 </button>
-              )*/}
+              )}
             </div>
           </div>
         </div>
