@@ -82,6 +82,13 @@ export default function MusteriDetayModal({ musteri, onClose, onRandevuClick, on
 
   const aktifDegistir = async () => {
     const next = !aktifMi;
+    if (!next) {
+      const planli = randevular.filter((r) => r.durum === 'planlandı').length;
+      if (planli > 0) {
+        alert(`Aktif randevusu var (${planli} planlı seans). Pasif edilemez.`);
+        return;
+      }
+    }
     setAktifKayit(true);
     const { error } = await supabase.from('musteriler').update({ aktif: next }).eq('id', musteri.id);
     setAktifKayit(false);
@@ -197,7 +204,7 @@ export default function MusteriDetayModal({ musteri, onClose, onRandevuClick, on
                   {borc.toLocaleString('tr-TR')} TL Borç (Öde)
                 </button>
               )}
-              {isAdmin && (
+              {/*isAdmin && (
                 <button
                   onClick={() => paketSil(p)}
                   disabled={siliniyor === p.id}
@@ -205,7 +212,7 @@ export default function MusteriDetayModal({ musteri, onClose, onRandevuClick, on
                 >
                   {siliniyor === p.id ? 'Siliniyor...' : 'Sil'}
                 </button>
-              )}
+              )*/}
             </div>
           </div>
         </div>
