@@ -263,11 +263,11 @@ export default function ClientsView({ userRole }) {
                         <Edit className="w-3.5 h-3.5 text-indigo-600" />
                       </button>
                     )}
-                    {isAdmin && (
+                    {/* isAdmin && (
                       <button onClick={() => sil(m.id, m.adi)} className="w-7 h-7 bg-red-50 rounded-full flex items-center justify-center" title="Sil">
                         <Trash className="w-3.5 h-3.5 text-red-500" />
                       </button>
-                    )}
+                    )*/}
                   </div>
                 </div>
 
