@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { supabase } from './supabaseClient.js';
 import TakvimView from './TakvimView.jsx';
 import AjandaView from './AjandaView.jsx';
@@ -152,6 +152,15 @@ export default function CalendarView() {
 }
 
 function WeekHeader({ secilenTarih, setSecilenTarih, userName }) {
+  const tarihRef = useRef(null);
+  const tarihAc = () => {
+    const el = tarihRef.current;
+    if (!el) return;
+    try {
+      if (typeof el.showPicker === 'function') el.showPicker();
+    } catch (_) {}
+  };
+
   const todayStr = new Date().toISOString().slice(0, 10);
   const getWeekDays = (s) => {
     const date = new Date(s + 'T12:00:00');
@@ -185,9 +194,12 @@ function WeekHeader({ secilenTarih, setSecilenTarih, userName }) {
           <label className="relative inline-flex items-center min-h-[32px] pr-2 text-[13px] font-extrabold capitalize text-left cursor-pointer">
             <span className="pointer-events-none">{gunAy} {haftagun} • {tam}</span>
             <input
+              ref={tarihRef}
               type="date"
               value={secilenTarih}
               onChange={(e) => { if (e.target.value) setSecilenTarih(e.target.value); }}
+              onClick={tarihAc}
+              onFocus={tarihAc}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               style={{ fontSize: 16, minHeight: 32 }}
             />
