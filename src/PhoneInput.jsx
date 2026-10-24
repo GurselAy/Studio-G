@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 const ULKELER = [
   { iso: 'TR', ad: 'Türkiye', dial: '90', flag: '🇹🇷' },
@@ -77,18 +78,30 @@ export default function PhoneInput({ value, onChange, required }) {
   const parsed = parseValue(value);
   const [acik, setAcik] = useState(false);
   const [q, setQ] = useState('');
-  // Liste aşağıda yer yoksa YUKARI açılır (modal içinde kırpılmasın diye)
-  const [yukari, setYukari] = useState(false);
+  /* Liste modalın DOM'undan ÇIKARILIP body'ye basılır (portal + position:fixed).
+     Böylece modal ne kadar küçük olursa olsun liste kırpılmaz. */
+  const [menu, setMenu] = useState(null); // { left, genislik, top?, bottom?, maxH }
   const wrap = useRef(null);
   const btn = useRef(null);
+  const menuRef = useRef(null);
   const ulke = ULKELER.find((u) => u.dial === parsed.dial) || ULKELER[0];
 
   useEffect(() => {
     const fn = (e) => {
-      if (wrap.current && !wrap.current.contains(e.target)) setAcik(false);
+      const icerde =
+        (wrap.current && wrap.current.contains(e.target)) ||
+        (menuRef.current && menuRef.current.contains(e.target));
+      if (!icerde) setAcik(false);
+    };
+    const esc = (e) => {
+      if (e.key === 'Escape') setAcik(false);
     };
     document.addEventListener('mousedown', fn);
-    return () => document.removeEventListener('mousedown', fn);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('mousedown', fn);
+      document.removeEventListener('keydown', esc);
+    };
   }, []);
 
   const liste = useMemo(() => {
@@ -110,18 +123,51 @@ export default function PhoneInput({ value, onChange, required }) {
     onChange(telKaydet(parsed.dial + d));
   };
 
-  /* Butonu açmadan önce aşağıda ne kadar yer var ölç:
-     liste ~290px (arama + 5 satır). Yetmiyorsa yukarı aç. */
+  const GENISLIK = 208; // w-52
+  const ARAMA_H = 38;   // arama kutusu yüksekliği (tahmini)
+  const IDEAL_H = 240;  // 5 satır
+  const MIN_H = 120;    // en az 2-3 satır
+
+  /* Butonun ekrandaki yerini ölç → listeyi aşağı ya da yukarı yerleştir.
+     Yer DAR olsa bile liste en az MIN_H kadar açılır ve kaydırılır. */
+  const olc = () => {
+    const r = btn.current?.getBoundingClientRect();
+    if (!r) return;
+    const alt = window.innerHeight - r.bottom - 8;
+    const ust = r.top - 8;
+    const asagi = alt >= ust; // daha çok yer olan tarafa aç
+    const yer = asagi ? alt : ust;
+    const maxH = Math.max(MIN_H, Math.min(IDEAL_H, yer - ARAMA_H));
+
+    setMenu({
+      left: Math.min(r.left, window.innerWidth - GENISLIK - 8),
+      genislik: GENISLIK,
+      top: asagi ? r.bottom + 4 : undefined,
+      bottom: asagi ? undefined : window.innerHeight - r.top + 4,
+      maxH,
+    });
+  };
+
   const acKapa = () => {
     if (acik) {
       setAcik(false);
       return;
     }
-    const r = btn.current?.getBoundingClientRect();
-    const altBosluk = r ? window.innerHeight - r.bottom : 999;
-    setYukari(altBosluk < 300);
+    olc();
     setAcik(true);
   };
+
+  // Liste açıkken modal kaydırılırsa / pencere boyutu değişirse konumu güncelle
+  useEffect(() => {
+    if (!acik) return;
+    const yeniden = () => olc();
+    window.addEventListener('scroll', yeniden, true);
+    window.addEventListener('resize', yeniden);
+    return () => {
+      window.removeEventListener('scroll', yeniden, true);
+      window.removeEventListener('resize', yeniden);
+    };
+  }, [acik]);
 
   return (
     <div ref={wrap} className="flex gap-2">
@@ -135,11 +181,19 @@ export default function PhoneInput({ value, onChange, required }) {
           <span>{ulke.flag}</span>
           <span>+{ulke.dial}</span>
         </button>
-        {acik && (
+        {/* Liste: portal ile body'ye basılıyor */}
+        {acik && menu && createPortal(
           <div
-            className={`absolute z-50 w-52 bg-white border rounded-xl shadow-lg overflow-hidden ${
-              yukari ? 'bottom-full mb-1' : 'top-full mt-1'
-            }`}
+            ref={menuRef}
+            style={{
+              position: 'fixed',
+              left: menu.left,
+              width: menu.genislik,
+              top: menu.top,
+              bottom: menu.bottom,
+              zIndex: 9999,
+            }}
+            className="bg-white border rounded-xl shadow-lg overflow-hidden"
           >
             <input
               autoFocus
@@ -149,7 +203,7 @@ export default function PhoneInput({ value, onChange, required }) {
               className="w-full px-2 py-2 border-b text-xs font-bold"
             />
             {/* 5 satır görünür, fazlası kaydırmalı */}
-            <div className="overflow-y-auto overscroll-contain max-h-[15rem]">
+            <div style={{ maxHeight: menu.maxH }} className="overflow-y-auto overscroll-contain">
               {liste.length === 0 ? (
                 <div className="px-3 py-2 text-[11px] font-bold text-slate-400">Yok</div>
               ) : (
@@ -167,7 +221,8 @@ export default function PhoneInput({ value, onChange, required }) {
                 ))
               )}
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
       <input
