@@ -171,37 +171,37 @@ export default function MusteriDetayModal({ musteri, onClose, onRandevuClick, on
     // Sil butonu: SADECE yönetici + SADECE aktif (tamamlanmamış) paketlerde
     const silGoster = isAdmin && !tamamlandi;
     return (
-      <div key={p.id} className={`border p-3 rounded-xl ${tamamlandi ? 'bg-slate-50 border-slate-200' : 'bg-indigo-50 border-indigo-200'}`}>
+      <div key={p.id} className={`border p-3 md:p-4 rounded-xl transition ${tamamlandi ? 'bg-slate-50 border-slate-200' : 'bg-indigo-50 border-indigo-200 md:hover:border-indigo-300'}`}>
         <div className="flex justify-between items-start gap-2">
           <div className="flex-1 min-w-0">
-            <div className="font-extrabold text-[12px] text-slate-900 flex items-center gap-1.5 flex-wrap">
+            <div className="font-extrabold text-[12px] md:text-[13px] text-slate-900 flex items-center gap-1.5 flex-wrap">
               {p.hizmetler?.adi || 'Hizmet'}
               {isGrup && (
-                <span className="text-[10px] font-extrabold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">
+                <span className="text-[10px] md:text-[11px] font-extrabold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">
                   Grup {grupDoluluk[p.id] || 1}/{p.hizmetler?.katilim_sayisi}
                 </span>
               )}
               {tamamlandi && (
-                <span className="text-[10px] font-extrabold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+                <span className="text-[10px] md:text-[11px] font-extrabold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
                   Tamamlandı
                 </span>
               )}
             </div>
-            <div className="text-[10px] font-bold text-slate-600 mt-0.5">
+            <div className="text-[10px] md:text-[11px] font-bold text-slate-600 mt-0.5">
               {tamamlandi
                 ? `${p.toplam_seans} seans tamamlandı`
                 : `${p.kalan_seans}/${p.toplam_seans} seans kaldı`}
             </div>
           </div>
           <div className="text-right">
-            <div className="font-extrabold text-[12px] text-slate-900">
+            <div className="font-extrabold text-[12px] md:text-[13px] text-slate-900">
               {tl(p.odenen_tutar)} / {tl(p.ucret)} TL
             </div>
             <div className="flex items-center justify-end gap-1.5 mt-1">
               {borc > 0 && (
                 <button
                   onClick={() => onOdemeClick && onOdemeClick(p)}
-                  className="text-[10px] font-extrabold bg-amber-500 text-white px-2 py-1 rounded-full"
+                  className="text-[10px] md:text-[11px] font-extrabold bg-amber-500 text-white px-2 py-1 rounded-full"
                 >
                   {borc.toLocaleString('tr-TR')} TL Borç (Öde)
                 </button>
@@ -210,7 +210,7 @@ export default function MusteriDetayModal({ musteri, onClose, onRandevuClick, on
                 <button
                   onClick={() => paketSil(p)}
                   disabled={siliniyor === p.id}
-                  className="text-[10px] font-extrabold bg-rose-50 text-rose-600 border border-rose-200 px-2.5 py-1 rounded-full active:bg-rose-100 disabled:opacity-50"
+                  className="text-[10px] md:text-[11px] font-extrabold bg-rose-50 text-rose-600 border border-rose-200 px-2.5 py-1 rounded-full active:bg-rose-100 disabled:opacity-50"
                 >
                   {siliniyor === p.id ? 'Siliniyor...' : 'Sil'}
                 </button>
@@ -236,18 +236,18 @@ export default function MusteriDetayModal({ musteri, onClose, onRandevuClick, on
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex justify-center items-center p-4">
-      <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-black/60 flex justify-center items-center p-4 md:p-6">
+      <div className="bg-white w-full max-w-md md:max-w-xl lg:max-w-2xl rounded-2xl shadow-2xl max-h-[90dvh] md:max-h-[88vh] overflow-y-auto">
         <div className="sticky top-0 bg-white p-4 border-b flex justify-between items-center z-10">
           <div>
             <h2 className="text-[16px] font-extrabold text-slate-900">{musteri.adi}</h2>
-            <p className="text-[11px] font-bold text-slate-500">{musteri.telefon || '-'}</p>
+            <p className="text-[11px] md:text-[12px] font-bold text-slate-500">{musteri.telefon || '-'}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={aktifDegistir}
               disabled={aktifKayit}
-              className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full border disabled:opacity-50 ${
+              className={`text-[10px] md:text-[11px] font-extrabold px-2.5 py-1 rounded-full border disabled:opacity-50 ${
                 aktifMi
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                   : 'bg-slate-100 text-slate-500 border-slate-200'
@@ -262,10 +262,10 @@ export default function MusteriDetayModal({ musteri, onClose, onRandevuClick, on
         </div>
 
         <div className="p-4 space-y-4">
-          <div className="flex gap-2">
+          <div className="flex gap-2 md:max-w-sm">
             <a
               href={`tel:${musteri.telefon}`}
-              className="flex-1 py-2 bg-indigo-50 text-indigo-700 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1"
+              className="flex-1 py-2 md:py-2.5 bg-indigo-50 text-indigo-700 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1"
             >
               <Phone className="w-3.5 h-3.5" /> Ara
             </a>
@@ -279,25 +279,29 @@ export default function MusteriDetayModal({ musteri, onClose, onRandevuClick, on
 
           {aktifPaketler.length > 0 && (
             <div>
-              <h3 className="text-[12px] font-extrabold text-slate-900 mb-2 uppercase tracking-wider">Aktif Paketler</h3>
-              <div className="space-y-2">{aktifPaketler.map((p) => paketKart(p, false))}</div>
+              <h3 className="text-[12px] md:text-[13px] font-extrabold text-slate-900 mb-2 uppercase tracking-wider">Aktif Paketler</h3>
+              <div className="space-y-2 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
+                {aktifPaketler.map((p) => paketKart(p, false))}
+              </div>
             </div>
           )}
 
           {tamamlananPaketler.length > 0 && (
             <div>
-              <h3 className="text-[12px] font-extrabold text-slate-900 mb-2 uppercase tracking-wider">
+              <h3 className="text-[12px] md:text-[13px] font-extrabold text-slate-900 mb-2 uppercase tracking-wider">
                 Tamamlanan Paketler ({tamamlananPaketler.length})
               </h3>
-              <div className="space-y-2">{tamamlananPaketler.map((p) => paketKart(p, true))}</div>
+              <div className="space-y-2 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
+                {tamamlananPaketler.map((p) => paketKart(p, true))}
+              </div>
             </div>
           )}
 
           <div>
-            <div className="flex gap-1 bg-slate-100 rounded-xl p-1 mb-3">
+            <div className="flex gap-1 bg-slate-100 rounded-xl p-1 mb-3 md:max-w-sm">
               <button
                 onClick={() => setAktifTab('gelecek')}
-                className={`flex-1 py-1.5 rounded-lg text-[11px] font-extrabold ${
+                className={`flex-1 py-1.5 rounded-lg text-[11px] md:text-[12px] font-extrabold ${
                   aktifTab === 'gelecek' ? 'bg-white shadow text-slate-900' : 'text-slate-500'
                 }`}
               >
@@ -305,7 +309,7 @@ export default function MusteriDetayModal({ musteri, onClose, onRandevuClick, on
               </button>
               <button
                 onClick={() => setAktifTab('gecmis')}
-                className={`flex-1 py-1.5 rounded-lg text-[11px] font-extrabold ${
+                className={`flex-1 py-1.5 rounded-lg text-[11px] md:text-[12px] font-extrabold ${
                   aktifTab === 'gecmis' ? 'bg-white shadow text-slate-900' : 'text-slate-500'
                 }`}
               >
@@ -320,7 +324,7 @@ export default function MusteriDetayModal({ musteri, onClose, onRandevuClick, on
                 {aktifTab === 'gelecek' ? 'Gelecek randevu yok' : 'Geçmiş randevu yok'}
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2 md:space-y-0 md:grid md:grid-cols-2 md:gap-3">
                 {gosterilecekRandevular.map((r) => {
                   const badge = durumBadge(r.durum);
                   const isGrup = r.hizmetler?.tur === 'Grup';
@@ -328,22 +332,22 @@ export default function MusteriDetayModal({ musteri, onClose, onRandevuClick, on
                     <button
                       key={r.id}
                       onClick={() => onRandevuClick && onRandevuClick(r)}
-                      className="w-full text-left bg-white border border-slate-200 hover:border-violet-400 hover:shadow-md transition rounded-xl p-3"
+                      className="w-full text-left bg-white border border-slate-200 hover:border-violet-400 hover:shadow-md transition rounded-xl p-3 md:p-3.5 md:hover:-translate-y-0.5"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
                           <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
                           <div className="min-w-0">
-                            <div className="font-extrabold text-[12px] text-slate-900">
+                            <div className="font-extrabold text-[12px] md:text-[13px] text-slate-900">
                               {tarihFormatla(r.baslangic_saati)} • {saatFormatla(r.baslangic_saati)}-{saatFormatla(r.bitis_saati)}
                             </div>
-                            <div className="text-[10px] font-bold text-slate-500 truncate">
+                            <div className="text-[10px] md:text-[11px] font-bold text-slate-500 truncate">
                               {r.hizmetler?.adi} {isGrup ? `• Grup ${r.katilim_adet || 1}/${r.hizmetler?.katilim_sayisi}` : ''}
                             </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${badge.color}`}>
+                          <span className={`text-[9px] md:text-[10px] font-extrabold px-2 py-0.5 rounded-full ${badge.color}`}>
                             {badge.text}
                           </span>
                           <Edit className="w-3.5 h-3.5 text-slate-400" />

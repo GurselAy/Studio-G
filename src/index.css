@@ -33,3 +33,66 @@ body,
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* =====================================================================
+   PC UYUMU — Adım 1 (aşağıdaki blok yeni eklendi)
+   Mobil görünümü değiştirmez, sadece 768px ve üstünde devreye girer.
+   ===================================================================== */
+
+/* 1) Dış kabuk: telefonda aynı kalır, PC'de genişler.
+   Kullanım: <div className="uygulama-kabugu"> ... </div>
+   (Adım 2'de CalendarView içinde kullanacağız.) */
+.uygulama-kabugu {
+  width: 100%;
+  max-width: 28rem; /* 448px — mobil */
+  margin-inline: auto;
+}
+@media (min-width: 768px) {
+  .uygulama-kabugu {
+    max-width: 48rem;
+  }
+}
+@media (min-width: 1024px) {
+  .uygulama-kabugu {
+    max-width: 64rem;
+  }
+}
+@media (min-width: 1280px) {
+  .uygulama-kabugu {
+    max-width: 80rem;
+  }
+}
+
+/* 2) PC'de ince scrollbar (mobilde hiç görünmez, zararsız) */
+@media (min-width: 768px) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 999px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* 3) PC'de metin seçimi kolay olsun (mobilde dokunma davranışı aynı kalır) */
+@media (min-width: 768px) {
+  .pc-secilebilir {
+    user-select: text;
+  }
+}
+
+/* 4) PC'de fare imleci tıklanabilir öğelerde el olsun */
+@media (min-width: 768px) {
+  button:not(:disabled),
+  [role='button'] {
+    cursor: pointer;
+  }
+}

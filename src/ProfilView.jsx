@@ -74,51 +74,51 @@ export default function ProfilView({ embedded, paket, musteri, onClose, onSucces
 
   if (!user) {
     return (
-      <div className="p-10 text-center text-xs font-bold text-slate-400">Yükleniyor...</div>
+      <div className="p-10 text-center text-xs md:text-[13px] font-bold text-slate-400">Yükleniyor...</div>
     );
   }
 
   const content = (
     <div className="space-y-4">
       {msg && (
-        <div className="p-3 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-xl border border-emerald-200">
+        <div className="p-3 bg-emerald-50 text-emerald-700 text-xs md:text-[13px] font-bold rounded-xl border border-emerald-200">
           ✓ {msg}
         </div>
       )}
       {hata && (
-        <div className="p-3 bg-red-50 text-red-600 text-xs font-bold rounded-xl border border-red-200">
+        <div className="p-3 bg-red-50 text-red-600 text-xs md:text-[13px] font-bold rounded-xl border border-red-200">
           ✗ {hata}
         </div>
       )}
-      <form onSubmit={saveAll} className="space-y-3">
+      <form onSubmit={saveAll} className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-4">
         <div>
-          <label className="text-xs font-extrabold text-slate-900">Ad Soyad</label>
+          <label className="text-xs md:text-[13px] font-extrabold text-slate-900">Ad Soyad</label>
           <input
             value={form.adi}
             onChange={(e) => setForm({ ...form, adi: e.target.value })}
-            className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm"
+            className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm md:text-[14px]"
           />
         </div>
         <div>
-          <label className="text-xs font-extrabold text-slate-900">Telefon</label>
+          <label className="text-xs md:text-[13px] font-extrabold text-slate-900">Telefon</label>
           <div className="mt-1">
             <PhoneInput required value={form.telefon} onChange={(v) => setForm({ ...form, telefon: v })} />
           </div>
         </div>
         <div>
-          <label className="text-xs font-extrabold text-slate-900">E-posta</label>
+          <label className="text-xs md:text-[13px] font-extrabold text-slate-900">E-posta</label>
           <input
             type="email"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm"
+            className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm md:text-[14px]"
           />
-          <p className="text-[10px] text-slate-500 mt-1">
+          <p className="text-[10px] md:text-[11px] text-slate-500 mt-1">
             Değiştirirsen yeni e-posta ile giriş yapman gerekir
           </p>
         </div>
         <div>
-          <label className="text-xs font-extrabold text-slate-900">Yeni Şifre (numeric, boş bırakırsan değişmez)</label>
+          <label className="text-xs md:text-[13px] font-extrabold text-slate-900">Yeni Şifre (numeric, boş bırakırsan değişmez)</label>
           <input
             type="tel"
             inputMode="numeric"
@@ -126,13 +126,13 @@ export default function ProfilView({ embedded, paket, musteri, onClose, onSucces
             placeholder="Boş = değişmez (en az 6 hane)"
             value={newPass}
             onChange={(e) => setNewPass(e.target.value.replace(/\D/g, ''))}
-            className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm"
+            className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm md:text-[14px]"
           />
         </div>
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-3 bg-[#5b46f5] text-white rounded-xl font-extrabold disabled:opacity-50"
+          className="w-full py-3 bg-[#5b46f5] hover:bg-[#4c3ae0] text-white rounded-xl font-extrabold disabled:opacity-50 transition md:col-span-2 md:max-w-xs"
         >
           {loading ? 'Kaydediliyor...' : 'Tümünü Kaydet'}
         </button>
@@ -143,26 +143,28 @@ export default function ProfilView({ embedded, paket, musteri, onClose, onSucces
   if (embedded) {
     return (
       <>
-        <div className="p-6 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-900">Profili Düzenle</h2>
+        <div className="p-6 md:p-8 border-b border-slate-100">
+          <h2 className="text-lg md:text-xl font-bold text-slate-900">Profili Düzenle</h2>
           <p className="text-sm text-slate-500">Tüm bilgileri tek yerden güncelleyin.</p>
         </div>
-        <div className="p-6">{content}</div>
+        <div className="p-6 md:p-8 md:max-w-3xl">{content}</div>
       </>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 overflow-y-auto p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-[18px] font-extrabold">Profilim</h2>
-        {onClose && (
-          <button onClick={onClose} className="text-xs font-bold text-slate-500">
-            Kapat
-          </button>
-        )}
+    <div className="flex flex-col h-full bg-slate-50 overflow-y-auto p-4 md:p-6">
+      <div className="w-full md:max-w-3xl md:mx-auto">
+        <div className="flex items-center justify-between mb-3 md:mb-4">
+          <h2 className="text-[18px] md:text-[20px] font-extrabold">Profilim</h2>
+          {onClose && (
+            <button onClick={onClose} className="text-xs md:text-[13px] font-bold text-slate-500 md:hover:text-slate-700 transition">
+              Kapat
+            </button>
+          )}
+        </div>
+        <div className="bg-white rounded-2xl border p-4 md:p-6">{content}</div>
       </div>
-      <div className="bg-white rounded-2xl border p-4">{content}</div>
     </div>
   );
 }

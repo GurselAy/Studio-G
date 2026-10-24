@@ -211,57 +211,60 @@ export default function ClientsView({ userRole }) {
 
   return (
     <div className="flex flex-col h-full bg-slate-50">
-      <div className="bg-white p-4 border-b">
-        <div className="flex justify-between items-center mb-3">
+      <div className="bg-white p-4 md:px-5 md:py-4 border-b shrink-0">
+        <div className="flex justify-between items-center mb-3 md:mb-0 md:gap-4">
           <div>
-            <h1 className="text-[18px] font-extrabold text-slate-900">Müşteriler</h1>
-            <p className="text-[11px] font-bold text-slate-500">{filtreli.length} üye</p>
+            <h1 className="text-[18px] md:text-[20px] font-extrabold text-slate-900">Müşteriler</h1>
+            <p className="text-[11px] md:text-[12px] font-bold text-slate-500">{filtreli.length} üye</p>
           </div>
-          <button onClick={() => setMusteriModal(true)} className="w-9 h-9 bg-[#5b46f5] text-white rounded-full flex items-center justify-center">
-            <Plus className="w-5 h-5" />
+          <button onClick={() => setMusteriModal(true)} className="w-9 h-9 md:w-auto md:h-auto md:px-4 md:py-2 bg-[#5b46f5] hover:bg-[#4c3ae0] text-white rounded-full md:rounded-xl flex items-center justify-center gap-1.5 transition md:ml-auto">
+            <Plus className="w-5 h-5 md:w-4 md:h-4" />
+            <span className="hidden md:inline text-[12px] font-extrabold">Yeni Müşteri</span>
           </button>
         </div>
-        <div className="relative mb-2">
-          <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-          <input value={arama} onChange={(e) => setArama(e.target.value)} placeholder="İsim veya telefon ara..." className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border rounded-xl text-xs font-bold" />
-        </div>
-        <div className="flex gap-1.5">
-          <button onClick={() => setFilter('tumu')} className={`px-3 py-1 rounded-full text-[11px] font-extrabold ${filter === 'tumu' ? 'bg-slate-900 text-white' : 'bg-slate-100'}`}>Tümü</button>
-          <button onClick={() => setFilter('borclu')} className={`px-3 py-1 rounded-full text-[11px] font-extrabold ${filter === 'borclu' ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-700'}`}>Borçlu</button>
-          <button onClick={() => setFilter('pasif')} className={`px-3 py-1 rounded-full text-[11px] font-extrabold ${filter === 'pasif' ? 'bg-slate-500 text-white' : 'bg-slate-100'}`}>Pasif</button>
+        <div className="md:flex md:items-center md:gap-3 md:mt-3">
+          <div className="relative mb-2 md:mb-0 md:max-w-sm md:flex-1">
+            <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+            <input value={arama} onChange={(e) => setArama(e.target.value)} placeholder="İsim veya telefon ara..." className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border rounded-xl text-xs md:text-[13px] font-bold md:hover:border-slate-300 transition" />
+          </div>
+          <div className="flex gap-1.5 md:shrink-0">
+            <button onClick={() => setFilter('tumu')} className={`px-3 py-1 md:py-1.5 rounded-full text-[11px] md:text-[12px] font-extrabold transition ${filter === 'tumu' ? 'bg-slate-900 text-white' : 'bg-slate-100 md:hover:bg-slate-200'}`}>Tümü</button>
+            <button onClick={() => setFilter('borclu')} className={`px-3 py-1 md:py-1.5 rounded-full text-[11px] md:text-[12px] font-extrabold transition ${filter === 'borclu' ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-700 md:hover:bg-amber-100'}`}>Borçlu</button>
+            <button onClick={() => setFilter('pasif')} className={`px-3 py-1 md:py-1.5 rounded-full text-[11px] md:text-[12px] font-extrabold transition ${filter === 'pasif' ? 'bg-slate-500 text-white' : 'bg-slate-100 md:hover:bg-slate-200'}`}>Pasif</button>
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+      <div className="flex-1 overflow-y-auto p-3 md:p-5 space-y-2 md:space-y-0 md:grid md:grid-cols-2 xl:grid-cols-3 md:gap-3 md:auto-rows-min md:content-start">
         {loading ? (
-          <div className="text-center py-10 text-xs font-bold">Yükleniyor</div>
+          <div className="text-center py-10 text-xs md:text-[13px] font-bold md:col-span-full">Yükleniyor</div>
         ) : filtreli.length === 0 ? (
-          <div className="text-center py-10 text-xs font-bold text-slate-400">Müşteri bulunamadı</div>
+          <div className="text-center py-10 text-xs md:text-[13px] font-bold text-slate-400 md:col-span-full">Müşteri bulunamadı</div>
         ) : (
           filtreli.map((m) => {
             const paketler = aktifPaketler(m);
             const toplam = toplamBorc(m);
             return (
-              <div key={m.id} onClick={() => setDetayMusteri(m)} className="bg-white p-3 rounded-xl border cursor-pointer hover:border-violet-400 hover:shadow-md transition">
+              <div key={m.id} onClick={() => setDetayMusteri(m)} className="bg-white p-3 md:p-4 rounded-xl border cursor-pointer hover:border-violet-400 hover:shadow-md md:hover:-translate-y-0.5 transition">
                 <div className="flex justify-between items-start">
                   <div className="flex-1 min-w-0">
 
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-extrabold text-[13px] text-slate-900">{m.adi}</span>
-                      {toplam > 0 && <span className="text-[9px] font-bold rounded-full bg-rose-100 text-rose-600 px-2 py-0.5">Borçlu</span>}
+                      <span className="font-extrabold text-[13px] md:text-[14px] text-slate-900">{m.adi}</span>
+                      {toplam > 0 && <span className="text-[9px] md:text-[10px] font-bold rounded-full bg-rose-100 text-rose-600 px-2 py-0.5">Borçlu</span>}
                     </div>
 
-                    <div className="text-[10px] font-bold text-slate-500 mt-0.5">{m.telefon || '-'}</div>
+                    <div className="text-[10px] md:text-[11px] font-bold text-slate-500 mt-0.5">{m.telefon || '-'}</div>
                   </div>
                   <div className="flex gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => wa(m.telefon)} className="w-7 h-7 bg-emerald-50 rounded-full flex items-center justify-center" title="WhatsApp">
+                    <button onClick={() => wa(m.telefon)} className="w-7 h-7 md:w-8 md:h-8 bg-emerald-50 rounded-full flex items-center justify-center md:hover:bg-emerald-100 transition" title="WhatsApp">
                       <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
                     </button>
-                    <a href={`tel:${m.telefon}`} className="w-7 h-7 bg-indigo-50 rounded-full flex items-center justify-center" title="Ara">
+                    <a href={`tel:${m.telefon}`} className="w-7 h-7 md:w-8 md:h-8 bg-indigo-50 rounded-full flex items-center justify-center md:hover:bg-indigo-100 transition" title="Ara">
                       <Phone className="w-3.5 h-3.5" />
                     </a>
                     {isAdmin && (
-                      <button onClick={(e) => duzenleAc(m, e)} className="w-7 h-7 bg-indigo-50 rounded-full flex items-center justify-center" title="Düzenle">
+                      <button onClick={(e) => duzenleAc(m, e)} className="w-7 h-7 md:w-8 md:h-8 bg-indigo-50 rounded-full flex items-center justify-center md:hover:bg-indigo-100 transition" title="Düzenle">
                         <Edit className="w-3.5 h-3.5 text-indigo-600" />
                       </button>
                     )}
@@ -280,16 +283,16 @@ export default function ClientsView({ userRole }) {
                       return (
                         <div key={p.id} className="flex items-center justify-between gap-2 flex-wrap">
                           <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                            <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap">
+                            <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-[10px] md:text-[11px] font-bold whitespace-nowrap">
                               {p.kalan_seans}/{p.toplam_seans} {p.hizmetler?.adi}
                             </span>
                             {p.hizmetler?.tur === 'Grup' && (
-                              <span className="bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full text-[10px] font-extrabold whitespace-nowrap">
+                              <span className="bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full text-[10px] md:text-[11px] font-extrabold whitespace-nowrap">
                                 Grup {grupDoluluk[p.id] || 1}/{p.hizmetler?.katilim_sayisi}
                               </span>
                             )}
                             {borc > 0 && (
-                              <span className="bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                              <span className="bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full text-[10px] md:text-[11px] font-bold">
                                 {borc.toLocaleString('tr-TR')} TL borç
                               </span>
                             )}
@@ -297,7 +300,7 @@ export default function ClientsView({ userRole }) {
                           {borc > 0 && (
                             <button
                               onClick={(e) => { e.stopPropagation(); setOdeme({ paket: p, musteri: { id: m.id, adi: m.adi } }); }}
-                              className="text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full flex items-center gap-1 active:scale-95"
+                              className="text-[10px] md:text-[11px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full flex items-center gap-1 active:scale-95 md:hover:bg-emerald-100 transition"
                             >
                               <CreditCard className="w-3 h-3" /> Öde
                             </button>
@@ -308,7 +311,7 @@ export default function ClientsView({ userRole }) {
                   </div>
                 )}
 
-                <div className="mt-2 text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                <div className="mt-2 text-[10px] md:text-[11px] text-slate-400 font-bold flex items-center gap-1">
                   <Edit className="w-3 h-3" /> Detay için tıklayın
                 </div>
               </div>
@@ -318,32 +321,32 @@ export default function ClientsView({ userRole }) {
       </div>
 
       {musteriModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-sm rounded-2xl p-5">
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 md:p-6">
+          <div className="bg-white w-full max-w-sm md:max-w-md rounded-2xl p-5 md:p-6 max-h-[90dvh] md:max-h-[88vh] overflow-y-auto shadow-2xl">
             <div className="flex justify-between border-b pb-3">
-              <h2 className="text-[15px] font-extrabold">Yeni Müşteri Ekle</h2>
-              <button onClick={() => setMusteriModal(false)}><X className="w-5 h-5" /></button>
+              <h2 className="text-[15px] md:text-[17px] font-extrabold">Yeni Müşteri Ekle</h2>
+              <button onClick={() => setMusteriModal(false)} className="md:hover:bg-slate-100 md:rounded-full md:p-1 transition"><X className="w-5 h-5" /></button>
             </div>
             <form onSubmit={ekle} className="mt-3 space-y-3">
-              <input required placeholder="Ad Soyad" value={yeniAd} onChange={(e) => setYeniAd(ilkHarfBuyuk(e.target.value))} className="w-full px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm" />
+              <input required placeholder="Ad Soyad" value={yeniAd} onChange={(e) => setYeniAd(ilkHarfBuyuk(e.target.value))} className="w-full px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm md:text-[14px]" />
               <PhoneInput required value={yeniTel} onChange={setYeniTel} />
-              <button type="submit" className="w-full py-3 bg-[#5b46f5] text-white rounded-xl font-extrabold">Kaydet</button>
+              <button type="submit" className="w-full py-3 bg-[#5b46f5] hover:bg-[#4c3ae0] text-white rounded-xl font-extrabold text-sm md:text-[14px] transition">Kaydet</button>
             </form>
           </div>
         </div>
       )}
 
       {duzenle && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setDuzenle(null)}>
-          <div className="bg-white w-full max-w-sm rounded-2xl p-5" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 md:p-6" onClick={() => setDuzenle(null)}>
+          <div className="bg-white w-full max-w-sm md:max-w-md rounded-2xl p-5 md:p-6 max-h-[90dvh] md:max-h-[88vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between border-b pb-3">
-              <h2 className="text-[15px] font-extrabold">Müşteri Düzenle</h2>
-              <button onClick={() => setDuzenle(null)}><X className="w-5 h-5" /></button>
+              <h2 className="text-[15px] md:text-[17px] font-extrabold">Müşteri Düzenle</h2>
+              <button onClick={() => setDuzenle(null)} className="md:hover:bg-slate-100 md:rounded-full md:p-1 transition"><X className="w-5 h-5" /></button>
             </div>
             <form onSubmit={duzenleKaydet} className="mt-3 space-y-3">
-              <input required placeholder="Ad Soyad" value={duzenleAd} onChange={(e) => setDuzenleAd(ilkHarfBuyuk(e.target.value))} className="w-full px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm" />
+              <input required placeholder="Ad Soyad" value={duzenleAd} onChange={(e) => setDuzenleAd(ilkHarfBuyuk(e.target.value))} className="w-full px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm md:text-[14px]" />
               <PhoneInput required value={duzenleTel} onChange={setDuzenleTel} />
-              <button type="submit" className="w-full py-3 bg-[#5b46f5] text-white rounded-xl font-extrabold">Güncelle</button>
+              <button type="submit" className="w-full py-3 bg-[#5b46f5] hover:bg-[#4c3ae0] text-white rounded-xl font-extrabold text-sm md:text-[14px] transition">Güncelle</button>
             </form>
           </div>
         </div>

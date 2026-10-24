@@ -20,7 +20,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-xs font-bold">
+      <div className="min-h-[100dvh] flex items-center justify-center text-xs md:text-[13px] font-bold text-slate-500">
         Yükleniyor...
       </div>
     );
@@ -31,7 +31,7 @@ export default function App() {
   }
 
   return (
-    <div className="bg-slate-100 min-h-screen">
+    <div className="bg-slate-100 min-h-[100dvh]">
       <CalendarView key={session.user.id} />
     </div>
   );

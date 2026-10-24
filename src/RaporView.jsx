@@ -64,34 +64,35 @@ export default function RaporView() {
     }
     setLoading(false);
   };
-  if (loading) return <div className="p-10 text-center text-xs font-bold text-slate-400">Rapor yükleniyor...</div>;
+  if (loading) return <div className="p-10 text-center text-xs md:text-[13px] font-bold text-slate-400">Rapor yükleniyor...</div>;
   return (
-    <div className="flex flex-col h-full bg-slate-50 overflow-y-auto p-3 space-y-3">
-      <div className="grid grid-cols-2 gap-2">
-        <div className="bg-white p-3 rounded-xl border shadow-sm">
-          <div className="text-[10px] font-extrabold text-slate-500">BUGÜN TAHSİLAT</div>
-          <div className="text-[18px] font-extrabold text-slate-900 mt-1">{stats.bugun.toLocaleString('tr-TR')} TL</div>
+    <div className="flex flex-col h-full bg-slate-50 overflow-y-auto p-3 md:p-6 space-y-3 md:space-y-4 md:max-w-5xl md:mx-auto md:w-full">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+        <div className="bg-white p-3 md:p-4 rounded-xl border shadow-sm">
+          <div className="text-[10px] md:text-[11px] font-extrabold text-slate-500">BUGÜN TAHSİLAT</div>
+          <div className="text-[18px] md:text-[24px] font-extrabold text-slate-900 mt-1">{stats.bugun.toLocaleString('tr-TR')} TL</div>
         </div>
-        <div className="bg-white p-3 rounded-xl border shadow-sm">
-          <div className="text-[10px] font-extrabold text-slate-500">BU AY CİRO</div>
-          <div className="text-[18px] font-extrabold text-[#5b46f5] mt-1">{stats.buAy.toLocaleString('tr-TR')} TL</div>
+        <div className="bg-white p-3 md:p-4 rounded-xl border shadow-sm">
+          <div className="text-[10px] md:text-[11px] font-extrabold text-slate-500">BU AY CİRO</div>
+          <div className="text-[18px] md:text-[24px] font-extrabold text-[#5b46f5] mt-1">{stats.buAy.toLocaleString('tr-TR')} TL</div>
         </div>
-        <div className="bg-white p-3 rounded-xl border shadow-sm">
-          <div className="text-[10px] font-extrabold text-slate-500">TOPLAM CİRO</div>
-          <div className="text-[16px] font-extrabold text-slate-900 mt-1">{stats.toplamCiro.toLocaleString('tr-TR')} TL</div>
-          <div className="text-[10px] font-bold text-slate-500">{stats.aktifPaket} aktif paket</div>
+        <div className="bg-white p-3 md:p-4 rounded-xl border shadow-sm">
+          <div className="text-[10px] md:text-[11px] font-extrabold text-slate-500">TOPLAM CİRO</div>
+          <div className="text-[16px] md:text-[22px] font-extrabold text-slate-900 mt-1">{stats.toplamCiro.toLocaleString('tr-TR')} TL</div>
+          <div className="text-[10px] md:text-[11px] font-bold text-slate-500">{stats.aktifPaket} aktif paket</div>
         </div>
-        <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 shadow-sm">
-          <div className="text-[10px] font-extrabold text-amber-700">TOPLAM ALACAK</div>
-          <div className="text-[16px] font-extrabold text-amber-700 mt-1">{stats.toplamAlacak.toLocaleString('tr-TR')} TL</div>
-          <div className="text-[10px] font-extrabold text-amber-600">{stats.borcluPaket} pakette alacak var</div>
+        <div className="bg-amber-50 p-3 md:p-4 rounded-xl border border-amber-200 shadow-sm">
+          <div className="text-[10px] md:text-[11px] font-extrabold text-amber-700">TOPLAM ALACAK</div>
+          <div className="text-[16px] md:text-[22px] font-extrabold text-amber-700 mt-1">{stats.toplamAlacak.toLocaleString('tr-TR')} TL</div>
+          <div className="text-[10px] md:text-[11px] font-extrabold text-amber-600">{stats.borcluPaket} pakette alacak var</div>
         </div>
       </div>
-      <div className="bg-white rounded-xl border p-3">
-        <h3 className="text-[13px] font-extrabold text-slate-900 mb-2">Son Tahsilatlar</h3>
-        {sonOdemeler.length === 0 ? <div className="text-[11px] font-bold text-slate-400">Henüz ödeme yok</div>
+      <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-4 md:items-start">
+      <div className="bg-white rounded-xl border p-3 md:p-4">
+        <h3 className="text-[13px] md:text-[14px] font-extrabold text-slate-900 mb-2">Son Tahsilatlar</h3>
+        {sonOdemeler.length === 0 ? <div className="text-[11px] md:text-[12px] font-bold text-slate-400">Henüz ödeme yok</div>
           : sonOdemeler.map((o) => (
-            <div key={o.id} className="flex justify-between py-2 border-b last:border-0 text-[11px]">
+            <div key={o.id} className="flex justify-between py-2 border-b last:border-0 text-[11px] md:text-[12px] md:hover:bg-slate-50 md:px-1 md:rounded transition">
               <div>
                 <span className="font-extrabold text-slate-900">{o.musteriler?.adi || 'Müşteri'}</span>
                 <span className="font-bold text-slate-500 ml-2">
@@ -102,21 +103,22 @@ export default function RaporView() {
             </div>
           ))}
       </div>
-      <div className="bg-white rounded-xl border p-3">
-        <h3 className="text-[13px] font-extrabold text-slate-900 mb-2">Alacak Listesi</h3>
-        {alacaklilar.length === 0 ? <div className="text-[11px] font-bold text-slate-400">Alacak yok</div>
+      <div className="bg-white rounded-xl border p-3 md:p-4">
+        <h3 className="text-[13px] md:text-[14px] font-extrabold text-slate-900 mb-2">Alacak Listesi</h3>
+        {alacaklilar.length === 0 ? <div className="text-[11px] md:text-[12px] font-bold text-slate-400">Alacak yok</div>
           : alacaklilar.map((p) => (
-            <div key={p.id} className="flex justify-between py-2 border-b last:border-0 text-[11px]">
+            <div key={p.id} className="flex justify-between py-2 border-b last:border-0 text-[11px] md:text-[12px] md:hover:bg-slate-50 md:px-1 md:rounded transition">
               <div>
                 <div className="font-extrabold text-slate-900">{p.musteriler?.adi || 'Müşteri'}</div>
                 <div className="font-bold text-slate-500">{p.hizmetler?.adi || 'Hizmet'} • {p.kalan_seans}/{p.toplam_seans}</div>
               </div>
               <div className="text-right">
                 <div className="font-extrabold text-amber-600">{(p.ucret - p.odenen_tutar).toLocaleString('tr-TR')} TL</div>
-                <div className="text-[10px] font-bold text-slate-400">{p.odeme_durumu}</div>
+                <div className="text-[10px] md:text-[11px] font-bold text-slate-400">{p.odeme_durumu}</div>
               </div>
             </div>
           ))}
+      </div>
       </div>
     </div>
   );

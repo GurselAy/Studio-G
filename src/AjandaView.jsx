@@ -116,27 +116,27 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
       if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy)) setSecilenTarih(moveDay(secilenTarih, dx < 0 ? 1 : -1));
       touch.current = null;
     }}>
-      <div className="bg-white p-2 border-b space-y-2">
-        {userRole === 'Admin' && <div className="flex gap-2 overflow-x-auto no-scrollbar">
-          <button onClick={() => setSecilenEgitmen('tumu')} className="shrink-0 px-3 py-1.5 rounded-full text-[11px] font-extrabold bg-slate-100">Tümü</button>
-          {egitmenler.map((e) => <button key={e.id} onClick={() => setSecilenEgitmen(e.id)} className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-extrabold ${secilenEgitmen === e.id ? 'bg-indigo-600 text-white' : 'bg-slate-100'}`}>{e.adi}</button>)}
+      <div className="bg-white p-2 md:px-4 md:py-3 border-b space-y-2 shrink-0">
+        {userRole === 'Admin' && <div className="flex gap-2 overflow-x-auto no-scrollbar md:flex-wrap md:overflow-visible">
+          <button onClick={() => setSecilenEgitmen('tumu')} className="shrink-0 px-3 py-1.5 rounded-full text-[11px] md:text-[12px] font-extrabold bg-slate-100 md:hover:bg-slate-200 transition">Tümü</button>
+          {egitmenler.map((e) => <button key={e.id} onClick={() => setSecilenEgitmen(e.id)} className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] md:text-[12px] font-extrabold transition ${secilenEgitmen === e.id ? 'bg-indigo-600 text-white' : 'bg-slate-100 md:hover:bg-slate-200'}`}>{e.adi}</button>)}
         </div>}
-        <div className="relative"><Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" /><input value={arama} onChange={(e) => setArama(e.target.value)} placeholder="Üye veya telefon ara..." className="w-full pl-9 pr-3 py-2 bg-slate-50 border rounded-xl text-xs font-bold" /></div>
+        <div className="relative md:max-w-md"><Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" /><input value={arama} onChange={(e) => setArama(e.target.value)} placeholder="Üye veya telefon ara..." className="w-full pl-9 pr-3 py-2 bg-slate-50 border rounded-xl text-xs md:text-[13px] font-bold md:hover:border-slate-300 transition" /></div>
       </div>
-      <div className="flex-1 overflow-y-auto p-2.5 space-y-2">
-        {hata && <p className="text-xs text-red-600">{hata}</p>}
-        {loading ? <p className="text-center py-10 text-xs font-bold">Yükleniyor</p> : visible.length === 0 ? <p className="text-center py-16 text-xs font-bold text-slate-400">Randevu yok</p> : visible.map((r) => {
+      <div className="flex-1 overflow-y-auto p-2.5 md:p-4 space-y-2 md:space-y-0 md:grid md:grid-cols-2 xl:grid-cols-3 md:gap-3 md:auto-rows-min md:content-start">
+        {hata && <p className="text-xs md:text-[13px] text-red-600 md:col-span-full">{hata}</p>}
+        {loading ? <p className="text-center py-10 text-xs md:text-[13px] font-bold md:col-span-full">Yükleniyor</p> : visible.length === 0 ? <p className="text-center py-16 text-xs md:text-[13px] font-bold text-slate-400 md:col-span-full">Randevu yok</p> : visible.map((r) => {
           const katilim = r.randevu_katilimcilari || [];
           const isGroup = r.hizmetler?.tur === 'Grup';
           const [label, badge] = status(r);
           const trainerIndex = egitmenler.findIndex((e) => e.id === r.egitmen_id);
           const ilkPaket = katilim[0] ? paketFor(r, katilim[0]) : null;
-          return <div key={r.id} className="bg-white rounded-xl p-2.5 shadow-sm border border-slate-100">
+          return <div key={r.id} className="bg-white rounded-xl p-2.5 md:p-3.5 shadow-sm border border-slate-100 md:hover:shadow-md md:hover:border-indigo-200 transition">
             <div className="flex items-center justify-between gap-1">
-              <span className={`flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-extrabold ${badge}`}><Clock className="w-3 h-3" />{time(r.baslangic_saati)} - {time(r.bitis_saati)}</span>
-              <div className="flex items-center gap-1"><span className="rounded-full px-2 py-0.5 text-[9px] font-bold text-white" style={{ backgroundColor: COLORS[trainerIndex < 0 ? 0 : trainerIndex % COLORS.length] }}>{r.kullanicilar?.adi?.split(' ')[0]}</span><span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${badge}`}>{label}</span></div>
+              <span className={`flex items-center gap-1 rounded-full px-2 py-1 text-[10px] md:text-[11px] font-extrabold ${badge}`}><Clock className="w-3 h-3" />{time(r.baslangic_saati)} - {time(r.bitis_saati)}</span>
+              <div className="flex items-center gap-1"><span className="rounded-full px-2 py-0.5 text-[9px] md:text-[10px] font-bold text-white" style={{ backgroundColor: COLORS[trainerIndex < 0 ? 0 : trainerIndex % COLORS.length] }}>{r.kullanicilar?.adi?.split(' ')[0]}</span><span className={`rounded-full px-2 py-0.5 text-[9px] md:text-[10px] font-bold ${badge}`}>{label}</span></div>
             </div>
-            <div className="mt-2 text-[11px] font-bold text-slate-600">
+            <div className="mt-2 text-[11px] md:text-[12px] font-bold text-slate-600">
               {r.hizmetler?.adi} {isGroup ? `Grup ${katilim.length}/${r.hizmetler?.katilim_sayisi || 1}` : 'Bireysel'}
               {isGroup && ilkPaket && <span className="text-indigo-700"> Seans: {ilkPaket.kalan_seans}/{ilkPaket.toplam_seans}</span>}
             </div>
@@ -145,17 +145,17 @@ export default function AjandaView({ secilenTarih, setSecilenTarih, secilenEgitm
                 const paket = paketFor(r, k);
                 const debt = borrow(paket);
                 return <div key={k.id} className="flex items-center justify-between gap-2 py-1 border-t border-slate-50">
-                  <div className="min-w-0"><div className="text-xs font-extrabold truncate">{k.musteriler?.adi || 'Müşteri'}</div>{!isGroup && paket && <div className="text-[10px] text-indigo-700">{paket.kalan_seans}/{paket.toplam_seans} seans</div>}</div>
+                  <div className="min-w-0"><div className="text-xs md:text-[13px] font-extrabold truncate">{k.musteriler?.adi || 'Müşteri'}</div>{!isGroup && paket && <div className="text-[10px] md:text-[11px] text-indigo-700">{paket.kalan_seans}/{paket.toplam_seans} seans</div>}</div>
                   <div className="flex items-center gap-1 shrink-0">
-                    {debt > 0 && <button onClick={() => pay(r, k)} className="px-2 py-1 text-[10px] font-extrabold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-1"><CreditCard className="w-3 h-3" />{money(debt)} TL Alacak</button>}
-                    <a href={`tel:${k.musteriler?.telefon || ''}`} className="w-6 h-6 bg-slate-50 border rounded-full flex items-center justify-center"><Phone className="w-3 h-3" /></a>
-                    <button onClick={() => wa(k.musteriler?.telefon)} className="w-6 h-6 bg-emerald-50 rounded-full flex items-center justify-center"><MessageSquare className="w-3 h-3 text-emerald-600" /></button>
+                    {debt > 0 && <button onClick={() => pay(r, k)} className="px-2 py-1 text-[10px] md:text-[11px] font-extrabold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-1 md:hover:bg-amber-100 transition"><CreditCard className="w-3 h-3" />{money(debt)} TL Alacak</button>}
+                    <a href={`tel:${k.musteriler?.telefon || ''}`} className="w-6 h-6 md:w-7 md:h-7 bg-slate-50 border rounded-full flex items-center justify-center md:hover:bg-slate-100 transition"><Phone className="w-3 h-3" /></a>
+                    <button onClick={() => wa(k.musteriler?.telefon)} className="w-6 h-6 md:w-7 md:h-7 bg-emerald-50 rounded-full flex items-center justify-center md:hover:bg-emerald-100 transition"><MessageSquare className="w-3 h-3 text-emerald-600" /></button>
                   </div>
                 </div>;
               })}
             </div>
             <div className="mt-2 flex justify-end gap-2">
-              <button onClick={() => onRandevuClick(r)} className="text-[10px] font-extrabold border px-3 py-1 rounded-full">Detay</button>
+              <button onClick={() => onRandevuClick(r)} className="text-[10px] md:text-[11px] font-extrabold border px-3 py-1 rounded-full md:hover:bg-slate-50 md:hover:border-slate-400 transition">Detay</button>
             </div>
           </div>;
         })}

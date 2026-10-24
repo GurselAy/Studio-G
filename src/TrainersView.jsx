@@ -209,54 +209,55 @@ export default function TrainersView() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50">
-      <div className="bg-white p-4 border-b flex justify-between items-center">
+      <div className="bg-white p-4 md:px-5 md:py-4 border-b flex justify-between items-center shrink-0">
         <div>
-          <h2 className="text-[16px] font-extrabold text-slate-900">Eğitmenler</h2>
-          <p className="text-[11px] font-bold text-slate-500">{list.length} eğitmen</p>
+          <h2 className="text-[16px] md:text-[18px] font-extrabold text-slate-900">Eğitmenler</h2>
+          <p className="text-[11px] md:text-[12px] font-bold text-slate-500">{list.length} eğitmen</p>
         </div>
         <button
           onClick={yeniEkle}
-          className="w-9 h-9 bg-[#5b46f5] text-white rounded-full flex items-center justify-center"
+          className="w-9 h-9 md:w-auto md:h-auto md:px-4 md:py-2 bg-[#5b46f5] hover:bg-[#4c3ae0] text-white rounded-full md:rounded-xl flex items-center justify-center gap-1.5 transition"
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="w-5 h-5 md:w-4 md:h-4" />
+          <span className="hidden md:inline text-[12px] font-extrabold">Yeni Eğitmen</span>
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+      <div className="flex-1 overflow-y-auto p-3 md:p-5 space-y-2 md:space-y-0 md:grid md:grid-cols-2 xl:grid-cols-3 md:gap-3 md:auto-rows-min md:content-start">
         {loading ? (
-          <div className="text-center py-10 text-xs font-bold">Yükleniyor</div>
+          <div className="text-center py-10 text-xs md:text-[13px] font-bold md:col-span-full">Yükleniyor</div>
         ) : (
           list.map((e) => (
-            <div key={e.id} className="bg-white p-3 rounded-xl border flex justify-between items-center">
+            <div key={e.id} className="bg-white p-3 md:p-4 rounded-xl border flex justify-between items-center md:hover:shadow-md md:hover:border-indigo-200 transition">
               <div className="text-left flex-1 min-w-0">
-                <div className="text-[13px] font-extrabold text-slate-900">{e.adi} - {e.rol}</div>
-                <div className="text-[10px] font-bold text-slate-600 truncate">{e.telefon} • {e.email}</div>
+                <div className="text-[13px] md:text-[14px] font-extrabold text-slate-900 truncate">{e.adi} - {e.rol}</div>
+                <div className="text-[10px] md:text-[11px] font-bold text-slate-600 truncate">{e.telefon} • {e.email}</div>
               </div>
-              <div className="flex gap-1">
+              <div className="flex gap-1 shrink-0">
                 <button
                   onClick={() => duzenle(e)}
-                  className="w-8 h-8 bg-indigo-50 rounded-full flex items-center justify-center"
+                  className="w-8 h-8 md:w-9 md:h-9 bg-indigo-50 rounded-full flex items-center justify-center md:hover:bg-indigo-100 transition"
                   title="Düzenle"
                 >
                   <Edit className="w-4 h-4 text-indigo-600" />
                 </button>
                 <button
                   onClick={() => wa(e.telefon)}
-                  className="w-7 h-7 bg-emerald-50 rounded-full flex items-center justify-center"
+                  className="w-7 h-7 md:w-8 md:h-8 bg-emerald-50 rounded-full flex items-center justify-center md:hover:bg-emerald-100 transition"
                   title="WhatsApp"
                 >
                   <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
                 </button>
                 <a
                   href={`tel:${e.telefon}`}
-                  className="w-7 h-7 bg-indigo-50 rounded-full flex items-center justify-center"
+                  className="w-7 h-7 md:w-8 md:h-8 bg-indigo-50 rounded-full flex items-center justify-center md:hover:bg-indigo-100 transition"
                   title="Ara"
                 >
                   <Phone className="w-3.5 h-3.5" />
                 </a>
                 <button
                   onClick={() => sil(e.id, e.adi)}
-                  className="w-7 h-7 bg-red-50 rounded-full flex items-center justify-center"
+                  className="w-7 h-7 md:w-8 md:h-8 bg-red-50 rounded-full flex items-center justify-center md:hover:bg-red-100 transition"
                   title="Sil"
                 >
                   <Trash className="w-3.5 h-3.5 text-red-500" />
@@ -268,54 +269,54 @@ export default function TrainersView() {
       </div>
 
       {open && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-sm rounded-2xl p-5 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 md:p-6">
+          <div className="bg-white w-full max-w-sm md:max-w-2xl rounded-2xl p-5 md:p-6 max-h-[90dvh] md:max-h-[88vh] overflow-y-auto shadow-2xl">
             <div className="flex justify-between border-b pb-3">
-              <h2 className="text-[15px] font-extrabold text-slate-900">
+              <h2 className="text-[15px] md:text-[17px] font-extrabold text-slate-900">
                 {editId ? 'Eğitmen Düzenle' : 'Yeni Eğitmen Ekle'}
               </h2>
-              <button onClick={() => setOpen(false)}>
+              <button onClick={() => setOpen(false)} className="md:hover:bg-slate-100 md:rounded-full md:p-1 transition">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {hata && <div className="mt-2 p-2 bg-red-50 text-red-600 text-xs font-bold rounded">{hata}</div>}
-            {info && <div className="mt-2 p-2 bg-emerald-50 text-emerald-700 text-xs font-bold rounded">{info}</div>}
+            {hata && <div className="mt-2 p-2 bg-red-50 text-red-600 text-xs md:text-[13px] font-bold rounded">{hata}</div>}
+            {info && <div className="mt-2 p-2 bg-emerald-50 text-emerald-700 text-xs md:text-[13px] font-bold rounded">{info}</div>}
 
-            <form onSubmit={kaydet} className="mt-3 space-y-3">
+            <form onSubmit={kaydet} className="mt-3 space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-4">
               <div>
-                <label className="text-xs font-extrabold text-slate-900">Ad Soyad</label>
+                <label className="text-xs md:text-[13px] font-extrabold text-slate-900">Ad Soyad</label>
                 <input
                   required
                   placeholder="Ad Soyad"
                   value={form.adi}
                   onChange={(e) => setForm({ ...form, adi: ilkHarfBuyuk(e.target.value) })}
-                  className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm"
+                  className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm md:text-[14px]"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-extrabold text-slate-900">Telefon</label>
+                <label className="text-xs md:text-[13px] font-extrabold text-slate-900">Telefon</label>
                 <div className="mt-1">
                   <PhoneInput required value={form.telefon} onChange={(v) => setForm({ ...form, telefon: v })} />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-extrabold text-slate-900">E-posta</label>
+                <label className="text-xs md:text-[13px] font-extrabold text-slate-900">E-posta</label>
                 <input
                   required
                   type="email"
                   placeholder="ornek@studio.com"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm"
+                  className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm md:text-[14px]"
                 />
               </div>
 
               {!editId && (
                 <div>
-                  <label className="text-xs font-extrabold text-slate-900">Şifre (en az 6, numeric klavye)</label>
+                  <label className="text-xs md:text-[13px] font-extrabold text-slate-900">Şifre (en az 6, numeric klavye)</label>
                   <input
                     required
                     type="tel"
@@ -324,17 +325,17 @@ export default function TrainersView() {
                     placeholder="123456"
                     value={form.sifre}
                     onChange={(e) => setForm({ ...form, sifre: e.target.value.replace(/\D/g, '') })}
-                    className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm"
+                    className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm md:text-[14px]"
                   />
                 </div>
               )}
 
               <div>
-                <label className="text-xs font-extrabold text-slate-900">Rol</label>
+                <label className="text-xs md:text-[13px] font-extrabold text-slate-900">Rol</label>
                 <select
                   value={form.rol}
                   onChange={(e) => setForm({ ...form, rol: e.target.value })}
-                  className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-extrabold text-sm"
+                  className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-extrabold text-sm md:text-[14px] md:hover:border-slate-300 transition"
                 >
                   <option>Eğitmen</option>
                   <option>Admin</option>
@@ -342,16 +343,16 @@ export default function TrainersView() {
               </div>
 
               {hizmetler.length > 0 && (
-                <div className="border border-slate-200 rounded-xl p-3">
-                  <div className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">
+                <div className="border border-slate-200 rounded-xl p-3 md:col-span-2">
+                  <div className="text-xs md:text-[13px] font-extrabold text-slate-500 uppercase tracking-wider mb-2">
                     Hizmet Bazlı Seans Ücretleri (TL)
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 md:space-y-0 md:grid md:grid-cols-2 md:gap-x-4 md:gap-y-2">
                     {hizmetler.map((h) => (
                       <div key={h.id} className="flex items-center justify-between text-sm gap-2">
                         <div className="flex-1 min-w-0">
                           <div className="text-slate-700 font-bold truncate">{h.adi}</div>
-                          <div className="text-[9px] text-slate-500 font-bold">
+                          <div className="text-[9px] md:text-[10px] text-slate-500 font-bold">
                             {h.tur || 'Bireysel'} {h.katilim_sayisi > 1 ? `• ${h.katilim_sayisi} kişi` : ''} • {h.sure} dk
                           </div>
                         </div>
@@ -362,12 +363,12 @@ export default function TrainersView() {
                           placeholder="0"
                           value={ucretler[h.id] || ''}
                           onChange={(e) => setUcretler({ ...ucretler, [h.id]: e.target.value.replace(/\D/g, '') })}
-                          className="w-24 px-2 py-1.5 border rounded-lg bg-slate-50 font-bold text-right text-sm"
+                          className="w-24 md:w-28 px-2 py-1.5 border rounded-lg bg-slate-50 font-bold text-right text-sm md:text-[14px]"
                         />
                       </div>
                     ))}
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-2">
+                  <p className="text-[10px] md:text-[11px] text-slate-500 mt-2">
                     Her hizmet için eğitmenin alacağı ücret (seans başı)
                   </p>
                 </div>
@@ -375,7 +376,7 @@ export default function TrainersView() {
 
               <button
                 type="submit"
-                className="w-full py-3 bg-[#5b46f5] text-white rounded-xl font-extrabold"
+                className="w-full py-3 bg-[#5b46f5] hover:bg-[#4c3ae0] text-white rounded-xl font-extrabold text-sm md:text-[14px] transition md:col-span-2"
               >
                 {editId ? 'Güncelle' : 'Oluştur ve Giriş Yetkisi Ver'}
               </button>

@@ -126,10 +126,10 @@ export default function YedekView() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 p-3 space-y-2 overflow-y-auto">
-      <div className="bg-white p-3 rounded-xl border">
-        <h2 className="text-[14px] font-extrabold text-slate-900">Yedek (CSV)</h2>
-        <p className="text-[11px] font-bold text-slate-500 mt-1">
+    <div className="flex flex-col h-full bg-slate-50 p-3 md:p-6 space-y-2 md:space-y-3 overflow-y-auto md:max-w-3xl md:mx-auto md:w-full">
+      <div className="bg-white p-3 md:p-5 rounded-xl border">
+        <h2 className="text-[14px] md:text-[17px] font-extrabold text-slate-900">Yedek (CSV)</h2>
+        <p className="text-[11px] md:text-[13px] font-bold text-slate-500 mt-1">
           Her tabloyu Excel'de açılabilen CSV olarak indirir. Düzenli olarak bilgisayarınıza kaydedin.
         </p>
       </div>
@@ -139,12 +139,12 @@ export default function YedekView() {
             key={d.ad}
             onClick={() => yedekle(d)}
             disabled={hazirlanan !== null}
-            className={`w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 disabled:opacity-50 ${
+            className={`w-full flex items-center justify-between p-4 md:p-5 text-left hover:bg-slate-50 disabled:opacity-50 transition ${
               idx !== DOSYALAR.length - 1 ? 'border-b border-slate-50' : ''
             }`}
           >
-            <span className="text-[14px] font-extrabold">{d.etiket}</span>
-            <span className="text-[11px] font-extrabold text-[#5b46f5]">
+            <span className="text-[14px] md:text-[15px] font-extrabold">{d.etiket}</span>
+            <span className="text-[11px] md:text-[12px] font-extrabold text-[#5b46f5]">
               {hazirlanan === d.ad ? 'Hazırlanıyor...' : 'İndir'}
             </span>
           </button>

@@ -61,22 +61,22 @@ export default function OdemeModal({ paket, musteri, onClose, onSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex justify-center items-center p-4">
-      <div className="bg-white w-full max-w-sm rounded-2xl p-5 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-black/60 flex justify-center items-center p-4 md:p-6">
+      <div className="bg-white w-full max-w-sm md:max-w-md rounded-2xl p-5 md:p-6 max-h-[90dvh] md:max-h-[85vh] overflow-y-auto shadow-2xl">
         <div className="flex justify-between border-b border-slate-100 pb-3">
-          <h2 className="text-[15px] font-extrabold text-slate-900">Ödeme Tahsil Et</h2>
-          <button onClick={onClose}>
+          <h2 className="text-[15px] md:text-[17px] font-extrabold text-slate-900">Ödeme Tahsil Et</h2>
+          <button onClick={onClose} className="md:hover:bg-slate-100 md:rounded-full md:p-1 transition">
             <X className="w-5 h-5 text-slate-400" />
           </button>
         </div>
-        <div className="mt-3 space-y-3 text-xs">
+        <div className="mt-3 space-y-3 text-xs md:text-[13px]">
           {hata && (
-            <div className="p-2 bg-red-50 text-red-600 rounded text-[11px] font-bold border border-red-100">
+            <div className="p-2 bg-red-50 text-red-600 rounded text-[11px] md:text-[12px] font-bold border border-red-100">
               {hata}
             </div>
           )}
           <div className="bg-slate-50 p-3 rounded-xl">
-            <div className="font-extrabold text-[13px] text-slate-900">{musteri?.adi || 'Müşteri'}</div>
+            <div className="font-extrabold text-[13px] md:text-[15px] text-slate-900">{musteri?.adi || 'Müşteri'}</div>
             <div className="font-bold text-slate-600">
               {paket.hizmetler?.adi || 'Hizmet'} - {paket.toplam_seans} seans
             </div>
@@ -87,7 +87,7 @@ export default function OdemeModal({ paket, musteri, onClose, onSuccess }) {
               </span>
             </div>
           </div>
-          <form onSubmit={tahsilEt} className="space-y-3">
+          <form onSubmit={tahsilEt} className="space-y-3 md:grid md:grid-cols-2 md:gap-3 md:space-y-0 md:items-end">
             <div>
               <label className="font-extrabold text-slate-900">Ek Tahsilat Tutarı (TL)</label>
               <input
@@ -100,13 +100,13 @@ export default function OdemeModal({ paket, musteri, onClose, onSuccess }) {
                 value={ekOdeme}
                 onChange={(e) => setEkOdeme(e.target.value.replace(/\D/g, ''))}
                 placeholder={`Maks ${kalan} TL`}
-                className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-extrabold"
+                className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-extrabold md:text-[14px]"
               />
             </div>
             <button
               type="submit"
               disabled={loading || kalan <= 0}
-              className="w-full py-3 bg-emerald-600 text-white rounded-xl font-extrabold disabled:opacity-50"
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-extrabold disabled:opacity-50 transition"
             >
               {loading ? 'İşleniyor...' : 'Tahsilatı Onayla'}
             </button>

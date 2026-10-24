@@ -119,26 +119,26 @@ export default function EgitmenKazancView() {
           placeholder="Tutar (TL)"
           value={tutar}
           onChange={(e) => setTutar(e.target.value.replace(/\D/g, ''))}
-          className="flex-1 px-3 py-2 border rounded-xl bg-slate-50 font-bold text-xs"
+          className="flex-1 px-3 py-2 border rounded-xl bg-slate-50 font-bold text-xs md:text-[13px]"
         />
         <input
           type="date"
           value={odemeTarihi}
           onChange={(e) => setOdemeTarihi(e.target.value)}
-          className="px-2 py-2 border rounded-xl bg-slate-50 font-bold text-xs"
+          className="px-2 py-2 border rounded-xl bg-slate-50 font-bold text-xs md:text-[13px]"
         />
       </div>
       <div className="flex gap-2">
         <button
           onClick={() => odemeKaydet(egitmenId)}
           disabled={kaydediliyor}
-          className="flex-1 py-2 bg-[#5b46f5] text-white rounded-xl font-extrabold text-xs disabled:opacity-50"
+          className="flex-1 py-2 bg-[#5b46f5] hover:bg-[#4c3ae0] text-white rounded-xl font-extrabold text-xs md:text-[13px] disabled:opacity-50 transition"
         >
           {kaydediliyor ? 'Kaydediliyor...' : 'Kaydet'}
         </button>
         <button
           onClick={() => { setOdemeAcik(null); setTutar(''); }}
-          className="px-3 py-2 bg-slate-100 rounded-xl font-extrabold text-xs"
+          className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl font-extrabold text-xs md:text-[13px] transition"
         >
           İptal
         </button>
@@ -147,11 +147,11 @@ export default function EgitmenKazancView() {
   );
   
   return (
-    <div className="flex flex-col h-full bg-slate-50 p-3 space-y-3 overflow-y-auto">
-      <div className="bg-white p-3 rounded-xl border flex justify-between items-center">
+    <div className="flex flex-col h-full bg-slate-50 p-3 md:p-6 space-y-3 md:space-y-4 overflow-y-auto md:max-w-6xl md:mx-auto md:w-full">
+      <div className="bg-white p-3 md:p-4 rounded-xl border flex justify-between items-center gap-3">
         <div>
-          <h2 className="text-[14px] font-extrabold text-slate-900">Eğitmen Hakediş</h2>
-          <p className="text-[11px] font-bold text-slate-500">
+          <h2 className="text-[14px] md:text-[17px] font-extrabold text-slate-900">Eğitmen Hakediş</h2>
+          <p className="text-[11px] md:text-[12px] font-bold text-slate-500">
             {toplamSeans} tamamlanan seans • {tl(toplamKazanc)} TL hakediş • {tl(toplamOdeme)} TL ödendi
           </p>
         </div>
@@ -159,16 +159,17 @@ export default function EgitmenKazancView() {
           type="month"
           value={ay}
           onChange={(e) => setAy(e.target.value)}
-          className="px-3 py-1.5 border rounded-xl bg-slate-50 text-xs font-bold"
+          className="px-3 py-1.5 border rounded-xl bg-slate-50 text-xs md:text-[13px] font-bold shrink-0 md:hover:border-slate-300 transition"
         />
       </div>
 
       {loading ? (
-        <div className="text-center py-10 text-xs font-bold">Yükleniyor...</div>
+        <div className="text-center py-10 text-xs md:text-[13px] font-bold">Yükleniyor...</div>
       ) : data.length === 0 && odemeler.length === 0 ? (
-        <div className="text-center py-10 text-xs font-bold text-slate-400">Bu ay kayıt yok</div>
+        <div className="text-center py-10 text-xs md:text-[13px] font-bold text-slate-400">Bu ay kayıt yok</div>
       ) : (
         <>
+          <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-4 md:items-start">
           {data.map((d) => {
             const odBuAy = odemeler
               .filter((o) => o.egitmen_id === d.id)
@@ -176,19 +177,19 @@ export default function EgitmenKazancView() {
             const kalanAy = d.toplam - odBuAy;
             const bk = bakiyeListe.find((b) => b.id === d.id)?.kalan || 0;
             return (
-              <div key={d.id} className="bg-white p-3 rounded-xl border shadow-sm">
+              <div key={d.id} className="bg-white p-3 md:p-4 rounded-xl border shadow-sm md:hover:shadow-md transition">
                 <div className="flex justify-between items-center">
                   <div>
-                    <div className="text-[13px] font-extrabold text-slate-900">{d.adi}</div>
-                    <div className="text-[11px] font-bold text-slate-500">{d.adet} seans tamamladı</div>
+                    <div className="text-[13px] md:text-[14px] font-extrabold text-slate-900">{d.adi}</div>
+                    <div className="text-[11px] md:text-[12px] font-bold text-slate-500">{d.adet} seans tamamladı</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-[15px] font-extrabold text-[#5b46f5]">{tl(d.toplam)} TL</div>
-                    <div className="text-[10px] font-bold text-slate-400">hakediş</div>
+                    <div className="text-[15px] md:text-[18px] font-extrabold text-[#5b46f5]">{tl(d.toplam)} TL</div>
+                    <div className="text-[10px] md:text-[11px] font-bold text-slate-400">hakediş</div>
                   </div>
                 </div>
                 <div className="mt-2 pt-2 border-t border-slate-100 flex justify-between items-center gap-2">
-                  <div className="text-[10px] font-bold text-slate-500">
+                  <div className="text-[10px] md:text-[11px] font-bold text-slate-500">
                     Bu ay ödenen: <span className="text-emerald-700 font-extrabold">{tl(odBuAy)} TL</span>
                     {kalanAy !== 0 && (
                       <> • Kalan: <span className={`font-extrabold ${kalanAy > 0 ? 'text-amber-600' : 'text-slate-400'}`}>{tl(kalanAy)} TL</span></>
@@ -199,13 +200,13 @@ export default function EgitmenKazancView() {
                       setOdemeAcik(odemeAcik === d.id ? null : d.id);
                       setTutar(kalanAy > 0 ? String(Math.round(kalanAy)) : '');
                     }}
-                    className="px-2.5 py-1 text-[10px] font-extrabold bg-amber-500 text-white rounded-full shrink-0"
+                    className="px-2.5 py-1 text-[10px] md:text-[11px] font-extrabold bg-amber-500 hover:bg-amber-600 text-white rounded-full shrink-0 transition"
                   >
                     Ödeme Kaydet
                   </button>
                 </div>
                 {bk !== 0 && (
-                  <div className="mt-1 text-[10px] font-bold text-slate-400">
+                  <div className="mt-1 text-[10px] md:text-[11px] font-bold text-slate-400">
                     Tüm zamanlar bakiye: <span className={bk > 0 ? 'text-rose-600' : 'text-emerald-600'}>{tl(bk)} TL</span>
                   </div>
                 )}
@@ -213,16 +214,17 @@ export default function EgitmenKazancView() {
               </div>
             );
           })}
+          </div>
 
-          <div className="bg-white rounded-xl border p-3">
-            <h3 className="text-[12px] font-extrabold text-slate-900 mb-2">Seans Detayları</h3>
+          <div className="bg-white rounded-xl border p-3 md:p-4">
+            <h3 className="text-[12px] md:text-[14px] font-extrabold text-slate-900 mb-2">Seans Detayları</h3>
             {detay.length === 0 ? (
-              <div className="text-[11px] font-bold text-slate-400">Bu ay seans yok</div>
+              <div className="text-[11px] md:text-[12px] font-bold text-slate-400">Bu ay seans yok</div>
             ) : (
               detay.map((k) => {
                 const adlar = (k.randevular?.randevu_katilimcilari || []).map((x) => x.musteriler?.adi).filter(Boolean).join(', ');
                 return (
-                  <div key={k.id} className="flex justify-between py-1.5 border-b last:border-0 text-[11px]">
+                  <div key={k.id} className="flex justify-between py-1.5 border-b last:border-0 text-[11px] md:text-[12px] md:hover:bg-slate-50 md:px-1 md:rounded transition">
                     <div>
                       <span className="font-bold text-slate-700">
                         {k.tarih ? new Date(k.tarih).toLocaleDateString('tr-TR') : '-'}
@@ -242,10 +244,10 @@ export default function EgitmenKazancView() {
           </div>
 
           {odemeler.length > 0 && (
-            <div className="bg-white rounded-xl border p-3">
-              <h3 className="text-[12px] font-extrabold text-slate-900 mb-2">Bu Ay Yapılan Ödemeler</h3>
+            <div className="bg-white rounded-xl border p-3 md:p-4">
+              <h3 className="text-[12px] md:text-[14px] font-extrabold text-slate-900 mb-2">Bu Ay Yapılan Ödemeler</h3>
               {odemeler.map((o) => (
-                <div key={o.id} className="flex justify-between items-center py-1.5 border-b last:border-0 text-[11px]">
+                <div key={o.id} className="flex justify-between items-center py-1.5 border-b last:border-0 text-[11px] md:text-[12px]">
                   <div>
                     <span className="font-bold text-slate-700">
                       {o.tarih ? new Date(o.tarih).toLocaleDateString('tr-TR') : '-'}
@@ -254,7 +256,7 @@ export default function EgitmenKazancView() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-extrabold text-emerald-700">{tl(o.tutar)} TL</span>
-                    <button onClick={() => odemeSil(o.id)} className="text-red-500 font-extrabold px-1" title="Sil">✕</button>
+                    <button onClick={() => odemeSil(o.id)} className="text-red-500 font-extrabold px-1 md:hover:bg-red-50 md:rounded transition" title="Sil">✕</button>
                   </div>
                 </div>
               ))}
@@ -262,20 +264,20 @@ export default function EgitmenKazancView() {
           )}
 
           {bakiyeListe.length > 0 && (
-            <div className="bg-white rounded-xl border p-3 pb-4">
-              <h3 className="text-[12px] font-extrabold text-slate-900 mb-2">Bakiyeler (tüm zamanlar)</h3>
+            <div className="bg-white rounded-xl border p-3 md:p-4 pb-4">
+              <h3 className="text-[12px] md:text-[14px] font-extrabold text-slate-900 mb-2">Bakiyeler (tüm zamanlar)</h3>
               {bakiyeListe.map((b) => (
                 <div key={b.id}>
                   <div className="flex justify-between items-center py-1.5 border-b last:border-0">
-                    <span className="text-[11px] font-bold text-slate-700">{b.adi}</span>
+                    <span className="text-[11px] md:text-[12px] font-bold text-slate-700">{b.adi}</span>
                     <div className="flex items-center gap-2">
-                      <span className={`text-[12px] font-extrabold ${b.kalan > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                      <span className={`text-[12px] md:text-[13px] font-extrabold ${b.kalan > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                         {tl(b.kalan)} TL
                       </span>
                       {b.kalan > 0 && (
                         <button
                           onClick={() => { setOdemeAcik('bk-' + b.id); setTutar(String(Math.round(b.kalan))); }}
-                          className="px-2 py-0.5 text-[10px] font-extrabold bg-amber-500 text-white rounded-full"
+                          className="px-2 py-0.5 text-[10px] md:text-[11px] font-extrabold bg-amber-500 hover:bg-amber-600 text-white rounded-full transition"
                         >
                           Öde
                         </button>

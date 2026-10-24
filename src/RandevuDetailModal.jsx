@@ -311,166 +311,172 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex justify-center items-center p-4">
-      <div className="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-black/60 flex justify-center items-center p-4 md:p-6">
+      <div className="bg-white w-full max-w-sm md:max-w-2xl rounded-2xl p-5 md:p-6 shadow-2xl max-h-[90dvh] md:max-h-[88vh] overflow-y-auto">
         <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-          <h2 className="text-[15px] font-extrabold text-slate-900">
+          <h2 className="text-[15px] md:text-[17px] font-extrabold text-slate-900">
             Randevu Detayı {isGrup ? `• Grup ${grupRandevular.length}/${kapasite}` : ''}
           </h2>
-          <button onClick={onClose}>
+          <button onClick={onClose} className="md:hover:bg-slate-100 md:rounded-full md:p-1 transition">
             <X className="w-5 h-5 text-slate-400" />
           </button>
         </div>
 
-        <div className="mt-3 space-y-3 text-xs">
+        <div className="mt-3 space-y-3 text-xs md:text-[13px] md:grid md:grid-cols-2 md:gap-5 md:space-y-0 md:items-start">
           {hata && (
-            <div className="p-2 bg-red-50 text-red-600 rounded text-[11px] font-bold border border-red-100">{hata}</div>
+            <div className="p-2 bg-red-50 text-red-600 rounded text-[11px] md:text-[12px] font-bold border border-red-100 md:col-span-2">{hata}</div>
           )}
 
-          {isGrup && (
-            <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl">
-              <div className="font-extrabold text-[12px] text-amber-800 mb-2">
-                Katılımcılar ({grupRandevular.length}/{kapasite})
-              </div>
-              {grupRandevular.map((g) => (
-                <div key={g.id} className="flex justify-between items-center gap-2 py-1.5 border-b last:border-0">
-                  <span className="font-bold text-slate-800 min-w-0 truncate">{g.musteriler?.adi}</span>
-                  {isAdmin && (
-                    <button
-                      onClick={() => gruptanAyril(g)}
-                      disabled={loading}
-                      className="px-2 py-1 text-[10px] font-extrabold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg shrink-0 disabled:opacity-50"
-                    >
-                      Gruptan Çıkar
-                    </button>
-                  )}
+          {/* ---------------- SOL KOLON (mobilde üstte) ---------------- */}
+          <div className="space-y-3">
+            {isGrup && (
+              <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl">
+                <div className="font-extrabold text-[12px] md:text-[13px] text-amber-800 mb-2">
+                  Katılımcılar ({grupRandevular.length}/{kapasite})
                 </div>
-              ))}
-              {grupRandevular.length < kapasite && (
-                <div className="flex gap-2 mt-2">
-                  <select
-                    value={yeniMusteriId}
-                    onChange={(e) => setYeniMusteriId(e.target.value)}
-                    className="flex-1 px-2 py-1.5 border rounded-lg bg-white font-bold text-[11px]"
-                  >
-                    <option value="">Müşteri seç</option>
-                    {musteriler
-                      .filter((m) => !grupRandevular.some((g) => g.musteri_id === m.id))
-                      .map((m) => (
-                        <option key={m.id} value={m.id}>{m.adi}</option>
-                      ))}
-                  </select>
-                  <button
-                    onClick={grubaEkle}
-                    disabled={loading}
-                    className="px-3 py-1.5 bg-[#5b46f5] text-white rounded-lg font-extrabold text-[11px] disabled:opacity-50"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-              {yeniMusteriId && aday === undefined && (
-                <p className="mt-1 text-[10px] font-bold text-slate-400">Paket kontrol ediliyor...</p>
-              )}
-              {yeniMusteriId && aday && aday.paket && (
-                <p className="mt-1 text-[10px] font-bold text-emerald-700">
-                  ✓ Mevcut paketten kullanılacak ({aday.hafta} hafta, boş hakkı yeterli)
-                </p>
-              )}
-              {yeniMusteriId && aday && !aday.paket && (
-                <div className="mt-2 bg-white border border-amber-300 rounded-lg p-2 space-y-1.5">
-                  <p className="text-[10px] font-bold text-amber-700">
-                    Boşta seans hakkı yok → kalan {aday.hafta} haftalık yeni paket oluşturulacak.
-                  </p>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <input
-                      type="tel"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      placeholder="Paket Fiyatı *"
-                      value={paketUcreti}
-                      onChange={(e) => setPaketUcreti(e.target.value.replace(/\D/g, ''))}
-                      className="w-full px-2 py-1.5 border rounded-lg font-bold text-[11px]"
-                    />
-                    <input
-                      type="tel"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      placeholder="Tahsil Edilen"
-                      value={tahsilEdilen}
-                      onChange={(e) => setTahsilEdilen(e.target.value.replace(/\D/g, ''))}
-                      className="w-full px-2 py-1.5 border rounded-lg font-bold text-[11px]"
-                    />
+                {grupRandevular.map((g) => (
+                  <div key={g.id} className="flex justify-between items-center gap-2 py-1.5 border-b last:border-0">
+                    <span className="font-bold text-slate-800 min-w-0 truncate">{g.musteriler?.adi}</span>
+                    {isAdmin && (
+                      <button
+                        onClick={() => gruptanAyril(g)}
+                        disabled={loading}
+                        className="px-2 py-1 text-[10px] md:text-[11px] font-extrabold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg shrink-0 disabled:opacity-50 md:hover:bg-rose-100 transition"
+                      >
+                        Gruptan Çıkar
+                      </button>
+                    )}
                   </div>
-                </div>
-              )}
-            </div>
-          )}
+                ))}
+                {grupRandevular.length < kapasite && (
+                  <div className="flex gap-2 mt-2">
+                    <select
+                      value={yeniMusteriId}
+                      onChange={(e) => setYeniMusteriId(e.target.value)}
+                      className="flex-1 px-2 py-1.5 border rounded-lg bg-white font-bold text-[11px] md:text-[12px]"
+                    >
+                      <option value="">Müşteri seç</option>
+                      {musteriler
+                        .filter((m) => !grupRandevular.some((g) => g.musteri_id === m.id))
+                        .map((m) => (
+                          <option key={m.id} value={m.id}>{m.adi}</option>
+                        ))}
+                    </select>
+                    <button
+                      onClick={grubaEkle}
+                      disabled={loading}
+                      className="px-3 py-1.5 bg-[#5b46f5] hover:bg-[#4c3ae0] text-white rounded-lg font-extrabold text-[11px] disabled:opacity-50 transition"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+                {yeniMusteriId && aday === undefined && (
+                  <p className="mt-1 text-[10px] md:text-[11px] font-bold text-slate-400">Paket kontrol ediliyor...</p>
+                )}
+                {yeniMusteriId && aday && aday.paket && (
+                  <p className="mt-1 text-[10px] md:text-[11px] font-bold text-emerald-700">
+                    ✓ Mevcut paketten kullanılacak ({aday.hafta} hafta, boş hakkı yeterli)
+                  </p>
+                )}
+                {yeniMusteriId && aday && !aday.paket && (
+                  <div className="mt-2 bg-white border border-amber-300 rounded-lg p-2 space-y-1.5">
+                    <p className="text-[10px] md:text-[11px] font-bold text-amber-700">
+                      Boşta seans hakkı yok → kalan {aday.hafta} haftalık yeni paket oluşturulacak.
+                    </p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        placeholder="Paket Fiyatı *"
+                        value={paketUcreti}
+                        onChange={(e) => setPaketUcreti(e.target.value.replace(/\D/g, ''))}
+                        className="w-full px-2 py-1.5 border rounded-lg font-bold text-[11px] md:text-[12px]"
+                      />
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        placeholder="Tahsil Edilen"
+                        value={tahsilEdilen}
+                        onChange={(e) => setTahsilEdilen(e.target.value.replace(/\D/g, ''))}
+                        className="w-full px-2 py-1.5 border rounded-lg font-bold text-[11px] md:text-[12px]"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
-          <div className="bg-slate-50 p-3 rounded-xl text-left">
-            <div className="font-extrabold text-[14px] text-slate-900">{baslikAdi}</div>
-            <div className="font-bold text-slate-600">{randevu.hizmetler?.adi}</div>
+            <div className="bg-slate-50 p-3 rounded-xl text-left">
+              <div className="font-extrabold text-[14px] md:text-[16px] text-slate-900">{baslikAdi}</div>
+              <div className="font-bold text-slate-600">{randevu.hizmetler?.adi}</div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          {/* ---------------- SAĞ KOLON (mobilde altta) ---------------- */}
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="font-extrabold text-slate-900">Tarih</label>
+                <input
+                  type="date"
+                  value={tarih}
+                  onChange={(e) => setTarih(e.target.value)}
+                  className="w-full mt-1 px-2 py-2 border rounded-xl bg-slate-50 font-bold"
+                />
+              </div>
+              <div>
+                <label className="font-extrabold text-slate-900">Saat</label>
+                <input
+                  type="time"
+                  value={saat}
+                  onChange={(e) => setSaat(e.target.value)}
+                  className="w-full mt-1 px-2 py-2 border rounded-xl bg-slate-50 font-bold"
+                />
+              </div>
+            </div>
+
             <div>
-              <label className="font-extrabold text-slate-900">Tarih</label>
-              <input
-                type="date"
-                value={tarih}
-                onChange={(e) => setTarih(e.target.value)}
-                className="w-full mt-1 px-2 py-2 border rounded-xl bg-slate-50 font-bold"
-              />
+              <label className="font-extrabold text-slate-900">Eğitmen</label>
+              <select
+                value={egitmenId}
+                onChange={(e) => setEgitmenId(e.target.value)}
+                className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold md:hover:border-slate-300 transition"
+              >
+                {egitmenler.map((eg) => (
+                  <option key={eg.id} value={eg.id}>{eg.adi}</option>
+                ))}
+              </select>
             </div>
+
             <div>
-              <label className="font-extrabold text-slate-900">Saat</label>
-              <input
-                type="time"
-                value={saat}
-                onChange={(e) => setSaat(e.target.value)}
-                className="w-full mt-1 px-2 py-2 border rounded-xl bg-slate-50 font-bold"
-              />
+              <label className="font-extrabold text-slate-900">Durum</label>
+              <select
+                value={durum}
+                onChange={(e) => setDurum(e.target.value)}
+                className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold md:hover:border-slate-300 transition"
+              >
+                <option value="planlandı">Planlandı</option>
+                <option value="tamamlandı">Tamamlandı</option>
+                <option value="iptal edildi">İptal Edildi</option>
+              </select>
+              <p className="text-[10px] md:text-[11px] text-slate-500 mt-1">
+                {isGrup
+                  ? 'Saat ve durum dersin kendisine yazılır, tüm katılımcılar aynı kalır. Tamamlandı: herkesin paketinden 1 seans düşer. Planlandı\'ya dönüşte seanslar iade edilir.'
+                  : 'Tamamlandı: seans düşer, hakediş eklenir. İptal: seans düşer, hakediş eklenmez. Planlandı\'ya geri alınırsa seans ve hakediş iade edilir.'}
+              </p>
             </div>
-          </div>
 
-          <div>
-            <label className="font-extrabold text-slate-900">Eğitmen</label>
-            <select
-              value={egitmenId}
-              onChange={(e) => setEgitmenId(e.target.value)}
-              className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold"
+            <button
+              onClick={guncelle}
+              disabled={loading}
+              className="w-full py-3 bg-[#5b46f5] hover:bg-[#4c3ae0] text-white rounded-xl font-extrabold text-xs md:text-[13px] disabled:opacity-60 transition"
             >
-              {egitmenler.map((eg) => (
-                <option key={eg.id} value={eg.id}>{eg.adi}</option>
-              ))}
-            </select>
+              {loading ? 'Kaydediliyor...' : 'Güncelle'}
+            </button>
           </div>
-
-          <div>
-            <label className="font-extrabold text-slate-900">Durum</label>
-            <select
-              value={durum}
-              onChange={(e) => setDurum(e.target.value)}
-              className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold"
-            >
-              <option value="planlandı">Planlandı</option>
-              <option value="tamamlandı">Tamamlandı</option>
-              <option value="iptal edildi">İptal Edildi</option>
-            </select>
-            <p className="text-[10px] text-slate-500 mt-1">
-              {isGrup
-                ? 'Saat ve durum dersin kendisine yazılır, tüm katılımcılar aynı kalır. Tamamlandı: herkesin paketinden 1 seans düşer. Planlandı\'ya dönüşte seanslar iade edilir.'
-                : 'Tamamlandı: seans düşer, hakediş eklenir. İptal: seans düşer, hakediş eklenmez. Planlandı\'ya geri alınırsa seans ve hakediş iade edilir.'}
-            </p>
-          </div>
-
-          <button
-            onClick={guncelle}
-            disabled={loading}
-            className="w-full py-3 bg-[#5b46f5] text-white rounded-xl font-extrabold disabled:opacity-60"
-          >
-            {loading ? 'Kaydediliyor...' : 'Güncelle'}
-          </button>
         </div>
       </div>
     </div>

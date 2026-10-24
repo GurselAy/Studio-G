@@ -98,74 +98,76 @@ export default function KarZararView() {
       setYil(yil + dir);
     }
   };
-  if (!stats) return <div className="p-10 text-center text-xs font-bold">Yükleniyor...</div>;
+  if (!stats) return <div className="p-10 text-center text-xs md:text-[13px] font-bold">Yükleniyor...</div>;
   const maxDagilim = Math.max(...dagilim.map((d) => d.tutar), 1);
 
   return (
     <div className="flex flex-col h-full bg-[#f6f5ff] overflow-y-auto">
-      <div className="bg-white p-4 border-b">
-        <div className="flex bg-slate-100 rounded-xl p-1 gap-1">
-          <button
-            onClick={() => setTab('aylik')}
-            className={`flex-1 py-2 rounded-lg text-xs font-extrabold ${
-              tab === 'aylik' ? 'bg-[#5b46f5] text-white shadow' : 'text-slate-500'
-            }`}
-          >
-            Aylık
-          </button>
-          <button
-            onClick={() => setTab('yillik')}
-            className={`flex-1 py-2 rounded-lg text-xs font-extrabold ${
-              tab === 'yillik' ? 'bg-[#5b46f5] text-white shadow' : 'text-slate-500'
-            }`}
-          >
-            Yıllık
-          </button>
-        </div>
-        <div className="flex justify-between items-center mt-3">
-          <button onClick={() => ayArttir(-1)} className="w-8 h-8 bg-slate-50 border rounded-full flex items-center justify-center">‹</button>
-          <span className="text-[14px] font-extrabold">{tab === 'aylik' ? ayAd(ay) : yil}</span>
-          <button onClick={() => ayArttir(1)} className="w-8 h-8 bg-slate-50 border rounded-full flex items-center justify-center">›</button>
+      <div className="bg-white p-4 md:px-6 border-b">
+        <div className="w-full max-w-5xl mx-auto">
+          <div className="flex bg-slate-100 rounded-xl p-1 gap-1 md:max-w-sm">
+            <button
+              onClick={() => setTab('aylik')}
+              className={`flex-1 py-2 rounded-lg text-xs md:text-[13px] font-extrabold transition ${
+                tab === 'aylik' ? 'bg-[#5b46f5] text-white shadow' : 'text-slate-500 md:hover:bg-slate-200'
+              }`}
+            >
+              Aylık
+            </button>
+            <button
+              onClick={() => setTab('yillik')}
+              className={`flex-1 py-2 rounded-lg text-xs md:text-[13px] font-extrabold transition ${
+                tab === 'yillik' ? 'bg-[#5b46f5] text-white shadow' : 'text-slate-500 md:hover:bg-slate-200'
+              }`}
+            >
+              Yıllık
+            </button>
+          </div>
+          <div className="flex justify-between items-center mt-3 md:max-w-sm md:mx-auto md:gap-4">
+            <button onClick={() => ayArttir(-1)} className="w-8 h-8 bg-slate-50 border rounded-full flex items-center justify-center md:hover:bg-slate-100 transition">‹</button>
+            <span className="text-[14px] md:text-[16px] font-extrabold">{tab === 'aylik' ? ayAd(ay) : yil}</span>
+            <button onClick={() => ayArttir(1)} className="w-8 h-8 bg-slate-50 border rounded-full flex items-center justify-center md:hover:bg-slate-100 transition">›</button>
+          </div>
         </div>
       </div>
       {tab === 'aylik' ? (
         <>
-          <div className="p-3 grid grid-cols-3 gap-2">
-            <div className="bg-white p-3 rounded-2xl border shadow-sm text-center">
-              <div className="text-[10px] font-bold text-slate-400 flex items-center justify-center gap-1">
+          <div className="p-3 md:p-6 md:max-w-5xl md:mx-auto md:w-full grid grid-cols-3 gap-2 md:gap-3">
+            <div className="bg-white p-3 md:p-4 rounded-2xl border shadow-sm text-center">
+              <div className="text-[10px] md:text-[11px] font-bold text-slate-400 flex items-center justify-center gap-1">
                 <span className="text-emerald-500">↗</span>Gelir
               </div>
-              <div className="text-[14px] font-extrabold mt-1">₺{stats.gelir.toLocaleString('tr-TR')}</div>
+              <div className="text-[14px] md:text-[18px] font-extrabold mt-1">₺{stats.gelir.toLocaleString('tr-TR')}</div>
             </div>
-            <div className="bg-white p-3 rounded-2xl border shadow-sm text-center">
-              <div className="text-[10px] font-bold text-slate-400 flex items-center justify-center gap-1">
+            <div className="bg-white p-3 md:p-4 rounded-2xl border shadow-sm text-center">
+              <div className="text-[10px] md:text-[11px] font-bold text-slate-400 flex items-center justify-center gap-1">
                 <span className="text-red-500">↘</span>Gider
               </div>
-              <div className="text-[14px] font-extrabold mt-1">₺{stats.gider.toLocaleString('tr-TR')}</div>
+              <div className="text-[14px] md:text-[18px] font-extrabold mt-1">₺{stats.gider.toLocaleString('tr-TR')}</div>
             </div>
-            <div className={`${stats.net >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'} p-3 rounded-2xl border text-center shadow-sm`}>
-              <div className={`text-[10px] font-bold ${stats.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+            <div className={`${stats.net >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'} p-3 md:p-4 rounded-2xl border text-center shadow-sm`}>
+              <div className={`text-[10px] md:text-[11px] font-bold ${stats.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                 {stats.net >= 0 ? 'KAR' : 'ZARAR'}
               </div>
-              <div className={`text-[14px] font-extrabold mt-1 ${stats.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+              <div className={`text-[14px] md:text-[18px] font-extrabold mt-1 ${stats.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                 ₺{Math.abs(stats.net).toLocaleString('tr-TR')}
               </div>
             </div>
           </div>
-          <div className="p-3">
-            <div className="bg-white rounded-2xl border p-4 shadow-sm">
-              <h3 className="text-[14px] font-extrabold mb-3">Gider Dağılımı</h3>
+          <div className="p-3 md:p-6 md:pt-0 md:max-w-5xl md:mx-auto md:w-full">
+            <div className="bg-white rounded-2xl border p-4 md:p-5 shadow-sm">
+              <h3 className="text-[14px] md:text-[16px] font-extrabold mb-3">Gider Dağılımı</h3>
               <div className="space-y-3">
                 {dagilim.length === 0 ? (
-                  <div className="text-[11px] font-bold text-slate-400">Gider yok</div>
+                  <div className="text-[11px] md:text-[12px] font-bold text-slate-400">Gider yok</div>
                 ) : (
                   dagilim.map((d, i) => (
                     <div key={i} className="space-y-1">
-                      <div className="flex justify-between text-[12px]">
+                      <div className="flex justify-between text-[12px] md:text-[13px]">
                         <span className="font-bold text-slate-700 text-left">{d.ad}</span>
                         <span className="font-extrabold">₺{d.tutar.toLocaleString('tr-TR')}</span>
                       </div>
-                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-2 md:h-2.5 bg-slate-100 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-gradient-to-r from-[#fb7185] to-[#ef4444] rounded-full"
                           style={{ width: `${(d.tutar / maxDagilim) * 100}%` }}
@@ -179,19 +181,19 @@ export default function KarZararView() {
           </div>
         </>
       ) : 
-      ( <div className="p-3 space-y-2">
+      ( <div className="p-3 md:p-6 md:max-w-5xl md:mx-auto md:w-full space-y-2 md:space-y-0 md:grid md:grid-cols-2 md:gap-3 md:items-start">
           {aylikDetay.map((m, i) => (
-            <div key={i} className="bg-white p-3 rounded-xl border flex justify-between items-center">
+            <div key={i} className="bg-white p-3 md:p-4 rounded-xl border flex justify-between items-center md:hover:shadow-sm transition">
               <div className="text-left">
-                <div className="text-[13px] font-extrabold">
+                <div className="text-[13px] md:text-[14px] font-extrabold">
                   {new Date(yil, i, 1).toLocaleDateString('tr-TR', { month: 'long' })}
                 </div>
-                <div className="text-[10px] font-bold text-slate-500">
+                <div className="text-[10px] md:text-[11px] font-bold text-slate-500">
                   Gelir ₺{m.gelir.toLocaleString('tr-TR')} • Gider ₺{m.gider.toLocaleString('tr-TR')}
                 </div>
               </div>
               <div
-                className={`text-[13px] font-extrabold ${
+                className={`text-[13px] md:text-[15px] font-extrabold ${
                   m.net >= 0 ? 'text-emerald-600' : 'text-red-600'
                 }`}
               >

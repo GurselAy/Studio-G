@@ -142,60 +142,62 @@ export default function HatirlatmalarView() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50">
-      <div className="bg-white p-4 border-b">
-        <h1 className="text-[16px] font-extrabold text-slate-900">Hatırlatmalar</h1>
-        <div className="flex gap-1 bg-slate-100 rounded-xl p-1 mt-3">
-          <button onClick={() => setTab('ders')} className={`flex-1 py-1.5 rounded-lg text-[11px] font-extrabold ${tab === 'ders' ? 'bg-white shadow text-slate-900' : 'text-slate-500'}`}>Ders Hatırlatma</button>
-          <button onClick={() => setTab('paket')} className={`flex-1 py-1.5 rounded-lg text-[11px] font-extrabold ${tab === 'paket' ? 'bg-white shadow text-slate-900' : 'text-slate-500'}`}>Paket Uyarıları</button>
+      <div className="bg-white p-4 md:px-6 md:py-4 border-b shrink-0">
+        <div className="md:max-w-5xl md:mx-auto md:w-full">
+          <h1 className="text-[16px] md:text-[18px] font-extrabold text-slate-900">Hatırlatmalar</h1>
+          <div className="flex gap-1 bg-slate-100 rounded-xl p-1 mt-3 md:max-w-md">
+            <button onClick={() => setTab('ders')} className={`flex-1 py-1.5 md:py-2 rounded-lg text-[11px] md:text-[12px] font-extrabold transition ${tab === 'ders' ? 'bg-white shadow text-slate-900' : 'text-slate-500 md:hover:bg-slate-200'}`}>Ders Hatırlatma</button>
+            <button onClick={() => setTab('paket')} className={`flex-1 py-1.5 md:py-2 rounded-lg text-[11px] md:text-[12px] font-extrabold transition ${tab === 'paket' ? 'bg-white shadow text-slate-900' : 'text-slate-500 md:hover:bg-slate-200'}`}>Paket Uyarıları</button>
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+      <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-3 md:space-y-4 md:max-w-5xl md:mx-auto md:w-full">
         {tab === 'ders' && (
           <>
-            <div className="flex gap-1.5">
+            <div className="flex gap-1.5 md:gap-2 flex-wrap">
               {gunEtiket.map((etiket, i) => (
-                <button key={i} onClick={() => setGunOffset(i)} className={`px-3 py-1.5 rounded-full text-[11px] font-extrabold ${gunOffset === i ? 'bg-[#5b46f5] text-white' : 'bg-white border text-slate-600'}`}>{etiket}</button>
+                <button key={i} onClick={() => setGunOffset(i)} className={`px-3 py-1.5 md:py-2 rounded-full text-[11px] md:text-[12px] font-extrabold transition ${gunOffset === i ? 'bg-[#5b46f5] text-white' : 'bg-white border text-slate-600 md:hover:bg-slate-50'}`}>{etiket}</button>
               ))}
             </div>
 
-            <div className="bg-white border rounded-xl p-3">
-              <label className="text-[10px] font-extrabold text-slate-500 uppercase">Mesaj Şablonu</label>
+            <div className="bg-white border rounded-xl p-3 md:p-4">
+              <label className="text-[10px] md:text-[11px] font-extrabold text-slate-500 uppercase">Mesaj Şablonu</label>
               <textarea
                 value={sablon}
                 onChange={(e) => { setSablon(e.target.value); localStorage.setItem(SABLON_KEY, e.target.value); }}
                 rows={2}
-                className="w-full mt-1 px-2 py-2 bg-slate-50 border rounded-lg text-[11px] font-bold"
+                className="w-full mt-1 px-2 py-2 bg-slate-50 border rounded-lg text-[11px] md:text-[13px] font-bold md:hover:border-slate-300 transition"
               />
-              <p className="text-[9px] font-bold text-slate-400 mt-1">
+              <p className="text-[9px] md:text-[10px] font-bold text-slate-400 mt-1">
                 Yer tutucular: {'{ad} {gun} {saat} {hizmet} {egitmen}'} — yazdığınız otomatik kaydedilir.
               </p>
             </div>
 
             {sYukleniyor ? (
-              <p className="text-center py-8 text-xs font-bold text-slate-400">Yükleniyor...</p>
+              <p className="text-center py-8 text-xs md:text-[13px] font-bold text-slate-400">Yükleniyor...</p>
             ) : seanslar.length === 0 ? (
-              <p className="text-center py-8 text-xs font-bold text-slate-400">{gunEtiket[gunOffset]} ({gunTarih}) için planlı ders yok</p>
+              <p className="text-center py-8 text-xs md:text-[13px] font-bold text-slate-400">{gunEtiket[gunOffset]} ({gunTarih}) için planlı ders yok</p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2 md:space-y-0 md:grid md:grid-cols-2 xl:grid-cols-3 md:gap-3 md:auto-rows-min">
                 {seanslar.map((s) => (
-                  <div key={s.id} className="bg-white border rounded-xl p-3 flex items-center justify-between gap-2">
+                  <div key={s.id} className="bg-white border rounded-xl p-3 md:p-4 flex items-center justify-between gap-2 md:hover:shadow-md md:hover:border-indigo-200 transition">
                     <div className="min-w-0">
-                      <div className="text-xs font-extrabold text-slate-900 truncate">{s.musteriler?.adi}</div>
-                      <div className="text-[10px] font-bold text-slate-500">
+                      <div className="text-xs md:text-[13px] font-extrabold text-slate-900 truncate">{s.musteriler?.adi}</div>
+                      <div className="text-[10px] md:text-[11px] font-bold text-slate-500">
                         {saatYazi(s.baslangic_saati)} • {s.hizmetler?.adi} • {s.kullanicilar?.adi?.split(' ')[0]}
                       </div>
                     </div>
                     <div className="flex gap-1.5 shrink-0">
                       {s.musteriler?.telefon && (
-                        <a href={`tel:${s.musteriler.telefon}`} className="w-8 h-8 bg-indigo-50 border rounded-full flex items-center justify-center">
+                        <a href={`tel:${s.musteriler.telefon}`} className="w-8 h-8 md:w-9 md:h-9 bg-indigo-50 border rounded-full flex items-center justify-center md:hover:bg-indigo-100 transition">
                           <Phone className="w-3.5 h-3.5" />
                         </a>
                       )}
                       <button
                         onClick={() => waAc(s.musteriler?.telefon, mesajDoldur(s))}
                         disabled={!s.musteriler?.telefon}
-                        className="w-8 h-8 bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-center disabled:opacity-40"
+                        className="w-8 h-8 md:w-9 md:h-9 bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-center disabled:opacity-40 md:hover:bg-emerald-100 transition"
                         title="Hatırlatma gönder"
                       >
                         <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
@@ -211,32 +213,32 @@ export default function HatirlatmalarView() {
         {tab === 'paket' && (
           <>
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-[12px] font-extrabold text-slate-900 uppercase">Paketi Bitmek Üzere</h3>
+              <div className="flex items-center justify-between mb-2 md:mb-3">
+                <h3 className="text-[12px] md:text-[13px] font-extrabold text-slate-900 uppercase">Paketi Bitmek Üzere</h3>
                 <div className="flex gap-1">
                   {[1, 2, 3].map((n) => (
-                    <button key={n} onClick={() => setSinir(n)} className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold ${sinir === n ? 'bg-amber-500 text-white' : 'bg-white border text-slate-600'}`}>≤{n} seans</button>
+                    <button key={n} onClick={() => setSinir(n)} className={`px-2.5 py-1 md:py-1.5 rounded-full text-[10px] md:text-[11px] font-extrabold transition ${sinir === n ? 'bg-amber-500 text-white' : 'bg-white border text-slate-600 md:hover:bg-slate-50'}`}>≤{n} seans</button>
                   ))}
                 </div>
               </div>
               {pYukleniyor ? (
-                <p className="text-center py-6 text-xs font-bold text-slate-400">Yükleniyor...</p>
+                <p className="text-center py-6 text-xs md:text-[13px] font-bold text-slate-400">Yükleniyor...</p>
               ) : paketler.length === 0 ? (
-                <p className="text-center py-6 text-xs font-bold text-slate-400">Bu kriterde paket yok 👍</p>
+                <p className="text-center py-6 text-xs md:text-[13px] font-bold text-slate-400">Bu kriterde paket yok 👍</p>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2 md:space-y-0 md:grid md:grid-cols-2 xl:grid-cols-3 md:gap-3 md:auto-rows-min">
                   {paketler.map((p) => (
-                    <div key={p.id} className="bg-white border border-amber-200 bg-amber-50/50 rounded-xl p-3 flex items-center justify-between gap-2">
+                    <div key={p.id} className="bg-white border border-amber-200 bg-amber-50/50 rounded-xl p-3 md:p-4 flex items-center justify-between gap-2 md:hover:shadow-md transition">
                       <div className="min-w-0">
-                        <div className="text-xs font-extrabold text-slate-900 truncate">{p.musteriler?.adi}</div>
-                        <div className="text-[10px] font-bold text-slate-500">
+                        <div className="text-xs md:text-[13px] font-extrabold text-slate-900 truncate">{p.musteriler?.adi}</div>
+                        <div className="text-[10px] md:text-[11px] font-bold text-slate-500">
                           {p.hizmetler?.adi} • <span className="text-amber-700">{p.kalan_seans}/{p.toplam_seans} seans kaldı</span>
                         </div>
                       </div>
                       <button
                         onClick={() => waAc(p.musteriler?.telefon, `Merhaba ${p.musteriler?.adi || ''}, ${p.hizmetler?.adi || ''} paketinizde ${p.kalan_seans} seans kaldı. Yenilemek için bize ulaşabilirsiniz. — Studio G`)}
                         disabled={!p.musteriler?.telefon}
-                        className="w-8 h-8 bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-center shrink-0 disabled:opacity-40"
+                        className="w-8 h-8 md:w-9 md:h-9 bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-center shrink-0 disabled:opacity-40 md:hover:bg-emerald-100 transition"
                       >
                         <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
                       </button>
@@ -247,25 +249,25 @@ export default function HatirlatmalarView() {
             </div>
 
             <div className="pt-1">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-[12px] font-extrabold text-slate-900 uppercase">Uzun Süredir Gelmiyor</h3>
+              <div className="flex items-center justify-between mb-2 md:mb-3">
+                <h3 className="text-[12px] md:text-[13px] font-extrabold text-slate-900 uppercase">Uzun Süredir Gelmiyor</h3>
                 <div className="flex gap-1">
                   {[10, 15, 30].map((n) => (
-                    <button key={n} onClick={() => setGelmeyenGun(n)} className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold ${gelmeyenGun === n ? 'bg-slate-900 text-white' : 'bg-white border text-slate-600'}`}>{n} gün</button>
+                    <button key={n} onClick={() => setGelmeyenGun(n)} className={`px-2.5 py-1 md:py-1.5 rounded-full text-[10px] md:text-[11px] font-extrabold transition ${gelmeyenGun === n ? 'bg-slate-900 text-white' : 'bg-white border text-slate-600 md:hover:bg-slate-50'}`}>{n} gün</button>
                   ))}
                 </div>
               </div>
               {gYukleniyor ? (
-                <p className="text-center py-6 text-xs font-bold text-slate-400">Yükleniyor...</p>
+                <p className="text-center py-6 text-xs md:text-[13px] font-bold text-slate-400">Yükleniyor...</p>
               ) : gelmeyenler.length === 0 ? (
-                <p className="text-center py-6 text-xs font-bold text-slate-400">Herkes gelmiş, güzel 👍</p>
+                <p className="text-center py-6 text-xs md:text-[13px] font-bold text-slate-400">Herkes gelmiş, güzel 👍</p>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2 md:space-y-0 md:grid md:grid-cols-2 xl:grid-cols-3 md:gap-3 md:auto-rows-min">
                   {gelmeyenler.map((m) => (
-                    <div key={m.id} className="bg-white border rounded-xl p-3 flex items-center justify-between gap-2">
+                    <div key={m.id} className="bg-white border rounded-xl p-3 md:p-4 flex items-center justify-between gap-2 md:hover:shadow-md md:hover:border-indigo-200 transition">
                       <div className="min-w-0">
-                        <div className="text-xs font-extrabold text-slate-900 truncate">{m.adi}</div>
-                        <div className="text-[10px] font-bold text-slate-500">
+                        <div className="text-xs md:text-[13px] font-extrabold text-slate-900 truncate">{m.adi}</div>
+                        <div className="text-[10px] md:text-[11px] font-bold text-slate-500">
                           {m.son
                             ? <>Son: {new Date(m.son).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })} • <span className="text-rose-600">{Math.floor((Date.now() - new Date(m.son).getTime()) / 86400000)} gün önce</span></>
                             : <span className="text-slate-400">Hiç seans kaydı yok</span>}
@@ -274,7 +276,7 @@ export default function HatirlatmalarView() {
                       <button
                         onClick={() => waAc(m.telefon, `Merhaba ${m.adi}, sizi özledik! Yakın zamanda görüşelim mi? — Studio G`)}
                         disabled={!m.telefon}
-                        className="w-8 h-8 bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-center shrink-0 disabled:opacity-40"
+                        className="w-8 h-8 md:w-9 md:h-9 bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-center shrink-0 disabled:opacity-40 md:hover:bg-emerald-100 transition"
                       >
                         <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
                       </button>

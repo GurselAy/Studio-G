@@ -388,22 +388,22 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
 
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex justify-center items-center p-4">
-      <div className="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-black/60 flex justify-center items-center p-4 md:p-6">
+      <div className="bg-white w-full max-w-sm md:max-w-3xl rounded-2xl p-4 md:p-6 shadow-2xl max-h-[90dvh] md:max-h-[88vh] overflow-y-auto">
         <div className="flex justify-between items-center pb-3 border-b border-slate-100">
-          <h2 className="text-[15px] font-extrabold text-slate-900">Yeni Randevu & Paket</h2>
-          <button onClick={onClose}>
+          <h2 className="text-[15px] md:text-[17px] font-extrabold text-slate-900">Yeni Randevu &amp; Paket</h2>
+          <button onClick={onClose} className="md:hover:bg-slate-100 md:rounded-full md:p-1 transition">
             <X className="w-5 h-5 text-slate-400" />
           </button>
         </div>
-        {hata && <div className="mt-2 p-2 bg-red-50 text-red-600 text-xs font-bold rounded border border-red-100">{hata}</div>}
-        <form onSubmit={kaydet} className="mt-3 space-y-3">
+        {hata && <div className="mt-2 p-2 bg-red-50 text-red-600 text-xs md:text-[13px] font-bold rounded border border-red-100">{hata}</div>}
+        <form onSubmit={kaydet} className="mt-3 space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-4">
           <div>
-            <label className="text-xs font-extrabold text-slate-900">Ders / Hizmet</label>
+            <label className="text-xs md:text-[13px] font-extrabold text-slate-900">Ders / Hizmet</label>
             <select
               value={secilenHizmet}
               onChange={(e) => { setSecilenHizmet(e.target.value); setSecilenGrupMusteriler([]); }}
-              className="w-full mt-1 px-3 py-2.5 bg-slate-50 border rounded-xl text-xs font-bold"
+              className="w-full mt-1 px-3 py-2.5 bg-slate-50 border rounded-xl text-xs md:text-[13px] font-bold md:hover:border-slate-300 transition"
             >
               {hizmetler.map((h) => (
                 <option key={h.id} value={h.id}>
@@ -412,7 +412,7 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
               ))}
             </select>
             {isGrup && (
-              <p className="text-[10px] font-bold text-amber-600 mt-1">
+              <p className="text-[10px] md:text-[11px] font-bold text-amber-600 mt-1">
                 Grup: Kontenjan {kapasite} kişi, ücret kişi başı. Aynı saatte mevcut grup varsa ona eklenir.
               </p>
             )}
@@ -420,13 +420,13 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
 
           <div>
             <div className="flex justify-between mb-1">
-              <label className="text-xs font-extrabold text-slate-900">
+              <label className="text-xs md:text-[13px] font-extrabold text-slate-900">
                 Müşteri {isGrup ? `(${secilenGrupMusteriler.length}/${kapasite})` : ''}
               </label>
               <button
                 type="button"
                 onClick={() => setYeniMusteriModu(!yeniMusteriModu)}
-                className="text-[11px] font-bold text-[#5b46f5]"
+                className="text-[11px] md:text-[12px] font-bold text-[#5b46f5] md:hover:underline"
               >
                 {yeniMusteriModu ? 'Listeden Seç' : '+ Yeni Müşteri'}
               </button>
@@ -437,7 +437,7 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
                   value={yeniMusteriAdi}
                   onChange={(e) => setYeniMusteriAdi(ilkHarfBuyuk(e.target.value))}
                   placeholder="Ad Soyad"
-                  className="w-full px-3 py-2.5 text-xs border rounded-xl font-bold"
+                  className="w-full px-3 py-2.5 text-xs md:text-[13px] border rounded-xl font-bold"
                 />
                 <PhoneInput required value={yeniMusteriTel} onChange={setYeniMusteriTel} />
               </div>
@@ -446,7 +446,7 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
                 <select
                   value={secilenMusteri}
                   onChange={(e) => setSecilenMusteri(e.target.value)}
-                  className="flex-1 px-3 py-2.5 bg-slate-50 border rounded-xl text-xs font-bold"
+                  className="flex-1 px-3 py-2.5 bg-slate-50 border rounded-xl text-xs md:text-[13px] font-bold"
                 >
                   <option value="">Seçin</option>
                   {musteriler
@@ -463,13 +463,13 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
               </div>
             )}
             {isGrup && secilenGrupMusteriler.length > 0 && (
-              <div className="mt-2 space-y-1">
+              <div className="mt-2 space-y-1 md:grid md:grid-cols-2 md:gap-1 md:space-y-0">
                 {secilenGrupMusteriler.map((id) => {
                   const m = musteriler.find((x) => x.id === id);
                   return (
-                    <div key={id} className="flex justify-between items-center bg-indigo-50 px-2.5 py-1.5 rounded-lg text-xs font-bold">
-                      <span>{m?.adi}</span>
-                      <button type="button" onClick={() => gruptanCikar(id)}>
+                    <div key={id} className="flex justify-between items-center bg-indigo-50 px-2.5 py-1.5 rounded-lg text-xs md:text-[13px] font-bold">
+                      <span className="truncate">{m?.adi}</span>
+                      <button type="button" onClick={() => gruptanCikar(id)} className="shrink-0 md:hover:bg-red-50 md:rounded-full md:p-1">
                         <Trash className="w-3.5 h-3.5 text-red-500" />
                       </button>
                     </div>
@@ -481,11 +481,11 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
               <div className={`mt-2 p-2 rounded-xl border flex justify-between items-center ${
                 paketYeterli ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'
               }`}>
-                <span className={`text-xs font-extrabold flex gap-1 ${paketYeterli ? 'text-emerald-800' : 'text-amber-800'}`}>
+                <span className={`text-xs md:text-[13px] font-extrabold flex gap-1 ${paketYeterli ? 'text-emerald-800' : 'text-amber-800'}`}>
                   <Package className="w-4 h-4" />
                   Kalan: {mevcutPaket.kalan_seans}/{mevcutPaket.toplam_seans} • Boşta: {mevcutPaket.planlanabilir}
                 </span>
-                <span className="text-[10px] font-bold bg-white px-2 py-0.5 rounded shadow">
+                <span className="text-[10px] md:text-[11px] font-bold bg-white px-2 py-0.5 rounded shadow">
                   {paketYeterli ? 'Paketten' : 'Yeni paket'}
                 </span>
               </div>
@@ -493,11 +493,11 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
           </div>
 
           <div>
-            <label className="text-xs font-extrabold text-slate-900">Eğitmen</label>
+            <label className="text-xs md:text-[13px] font-extrabold text-slate-900">Eğitmen</label>
             <select
               value={secilenEgitmen}
               onChange={(e) => setSecilenEgitmen(e.target.value)}
-              className="w-full mt-1 px-3 py-2.5 bg-slate-50 border rounded-xl text-xs font-bold"
+              className="w-full mt-1 px-3 py-2.5 bg-slate-50 border rounded-xl text-xs md:text-[13px] font-bold md:hover:border-slate-300 transition"
             >
               {egitmenler.map((eg) => (
                 <option key={eg.id} value={eg.id}>{eg.adi}</option>
@@ -507,28 +507,28 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs font-extrabold text-slate-900">Tarih</label>
+              <label className="text-xs md:text-[13px] font-extrabold text-slate-900">Tarih</label>
               <input
                 type="date"
                 value={tarih}
                 onChange={(e) => setTarih(e.target.value)}
-                className="w-full mt-1 px-2 py-2.5 bg-slate-50 border rounded-xl text-xs font-bold"
+                className="w-full mt-1 px-2 py-2.5 bg-slate-50 border rounded-xl text-xs md:text-[13px] font-bold"
               />
             </div>
             <div>
-              <label className="text-xs font-extrabold text-slate-900">Saat</label>
+              <label className="text-xs md:text-[13px] font-extrabold text-slate-900">Saat</label>
               <input
                 type="time"
                 value={saat}
                 onChange={(e) => setSaat(e.target.value)}
-                className="w-full mt-1 px-2 py-2.5 bg-slate-50 border rounded-xl text-xs font-bold"
+                className="w-full mt-1 px-2 py-2.5 bg-slate-50 border rounded-xl text-xs md:text-[13px] font-bold"
               />
             </div>
           </div>
 
-          <div className="bg-indigo-50/60 p-3 rounded-xl border border-indigo-100 space-y-2">
+          <div className="bg-indigo-50/60 p-3 rounded-xl border border-indigo-100 space-y-2 md:space-y-0 md:grid md:grid-cols-2 md:gap-3 md:col-span-2">
             <div>
-              <label className="text-[11px] font-extrabold text-slate-900">Toplam Seans</label>
+              <label className="text-[11px] md:text-[12px] font-extrabold text-slate-900">Toplam Seans</label>
               <input
                 type="tel"
                 inputMode="numeric"
@@ -536,13 +536,13 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
                 required
                 value={seansSayisi}
                 onChange={(e) => setSeansSayisi(e.target.value.replace(/\D/g, ''))}
-                className="w-full mt-1 px-3 py-2 bg-white border rounded-xl text-xs font-extrabold"
+                className="w-full mt-1 px-3 py-2 bg-white border rounded-xl text-xs md:text-[13px] font-extrabold"
               />
             </div>
             {!paketYeterli && (
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[11px] font-extrabold text-slate-900">
+                  <label className="text-[11px] md:text-[12px] font-extrabold text-slate-900">
                     Paket Fiyatı (TL) {isGrup ? 'Kişi Başı *' : '*'}
                   </label>
                   <input
@@ -552,11 +552,11 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
                     placeholder="8000"
                     value={paketUcreti}
                     onChange={(e) => setPaketUcreti(e.target.value.replace(/\D/g, ''))}
-                    className="w-full mt-1 px-2 py-2 bg-white border rounded-xl text-xs font-bold"
+                    className="w-full mt-1 px-2 py-2 bg-white border rounded-xl text-xs md:text-[13px] font-bold"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-extrabold text-slate-900">
+                  <label className="text-[11px] md:text-[12px] font-extrabold text-slate-900">
                     Tahsil Edilen {isGrup ? 'Kişi Başı' : ''}
                   </label>
                   <input
@@ -566,13 +566,13 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
                     placeholder="0"
                     value={tahsilEdilen}
                     onChange={(e) => setTahsilEdilen(e.target.value.replace(/\D/g, ''))}
-                    className="w-full mt-1 px-2 py-2 bg-white border rounded-xl text-xs font-bold"
+                    className="w-full mt-1 px-2 py-2 bg-white border rounded-xl text-xs md:text-[13px] font-bold"
                   />
                 </div>
               </div>
             )}
             {tarih && (
-              <p className="text-[10px] font-bold text-indigo-700 bg-white p-2 rounded-lg border">
+              <p className="text-[10px] md:text-[11px] font-bold text-indigo-700 bg-white p-2 rounded-lg border md:col-span-2">
                 Not: Önümüzdeki {seansSayisi || 0} hafta boyunca her{' '}
                 {new Date(tarih + 'T00:00:00').toLocaleDateString('tr-TR', { weekday: 'long' })} saat {saat}'e seanslar oluşturulacak.
               </p>
@@ -582,7 +582,7 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-[#5b46f5] text-white rounded-xl text-xs font-extrabold shadow disabled:opacity-60"
+            className="w-full py-3 bg-[#5b46f5] hover:bg-[#4c3ae0] text-white rounded-xl text-xs md:text-[13px] font-extrabold shadow disabled:opacity-60 transition md:col-span-2"
           >
             {loading
               ? 'Kaydediliyor...'

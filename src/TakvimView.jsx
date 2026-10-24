@@ -1,5 +1,6 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { supabase } from './supabaseClient.js';
+import { useMasaustu } from './useMasaustu.js';
 
 export default function TakvimView({
   secilenTarih,
@@ -9,10 +10,11 @@ export default function TakvimView({
   userRole,
   onRandevuClick,
 }) {
+  const masaustu = useMasaustu();
   const start = 8;
   const end = 22;
   const slot = 30;
-  const row = 40;
+  const row = masaustu ? 56 : 40;
   const slots = useMemo(() => {
     const arr = [];
     for (let m = start * 60; m <= end * 60; m += slot) {
@@ -92,13 +94,14 @@ export default function TakvimView({
 
   return (
     <div className="flex flex-col h-full bg-[#fffef5] overflow-hidden select-none" onTouchStart={onStart} onTouchEnd={onEnd}>
-      <div className="flex border-b bg-white">
-        <div className="w-[52px] min-w-[52px] border-r flex items-center justify-center text-[9px] font-extrabold">SAAT</div>
-        <div className="flex-1 flex">
+      <div className="flex border-b bg-white shrink-0">
+        <div className="w-[52px] min-w-[52px] md:w-[68px] md:min-w-[68px] border-r flex items-center justify-center text-[9px] md:text-[10px] font-extrabold">SAAT</div>
+        {/* PC'de çok eğitmen varsa kolonlar sıkışmasın: yatay kaydırma */}
+        <div className="flex-1 flex overflow-x-auto md:overflow-x-auto">
           {(egitmenler || []).map((e, i) => (
             <div
               key={e.id}
-              className="flex-1 min-w-0 text-center py-2 text-[11px] font-extrabold text-white truncate"
+              className="flex-1 md:flex-none min-w-0 md:min-w-[130px] text-center py-2 md:py-2.5 text-[11px] md:text-[12px] font-extrabold text-white truncate md:px-2"
               style={{ backgroundColor: colors[i % colors.length] }}
             >
               {e.adi}
@@ -106,21 +109,21 @@ export default function TakvimView({
           ))}
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden md:overflow-x-auto">
         {loading ? (
-          <div className="text-center py-10 text-xs font-bold text-slate-400">Yükleniyor...</div>
+          <div className="text-center py-10 text-xs md:text-[13px] font-bold text-slate-400">Yükleniyor...</div>
         ) : (
-          <div className="flex" style={{ height: total }}>
-            <div className="w-[52px] min-w-[52px] bg-white border-r">
+          <div className="flex md:min-w-max" style={{ height: total }}>
+            <div className="w-[52px] min-w-[52px] md:w-[68px] md:min-w-[68px] bg-white border-r md:sticky md:left-0 md:z-10">
               {slots.map((t) => (
-                <div key={t} style={{ height: row }} className="border-b text-right pr-1.5 pt-1">
-                  <span className={t.endsWith(':00') ? 'text-[11px] font-extrabold' : 'text-[9px] text-slate-400'}>{t}</span>
+                <div key={t} style={{ height: row }} className="border-b text-right pr-1.5 md:pr-2 pt-1">
+                  <span className={t.endsWith(':00') ? 'text-[11px] md:text-[12px] font-extrabold' : 'text-[9px] md:text-[10px] text-slate-400'}>{t}</span>
                 </div>
               ))}
             </div>
             <div className="flex-1 flex relative">
               {(egitmenler || []).map((egt, idx) => (
-                <div key={egt.id} className="flex-1 min-w-0 relative border-r bg-[#fffef5]">
+                <div key={egt.id} className="flex-1 md:flex-none md:min-w-[130px] md:basis-[130px] min-w-0 relative border-r bg-[#fffef5]">
                   {slots.map((_, i) => (
                     <div key={i} className="absolute left-0 right-0 border-b" style={{ top: i * row, height: row }} />
                   ))}
@@ -137,16 +140,16 @@ export default function TakvimView({
                       <div
                         key={f.id}
                         onClick={() => onRandevuClick(f)}
-                        className="absolute left-[2px] right-[2px] bg-white border-[1.5px] rounded-[6px] px-1.5 py-1 shadow-sm overflow-hidden cursor-pointer"
+                        className="absolute left-[2px] right-[2px] bg-white border-[1.5px] rounded-[6px] px-1.5 py-1 shadow-sm overflow-hidden cursor-pointer md:hover:shadow-md md:hover:z-20 transition"
                         style={{ top, height: h, borderColor: colors[idx % colors.length] }}
                       >
-                        <div className="text-[9px] font-bold leading-none">
+                        <div className="text-[9px] md:text-[10px] font-bold leading-none">
                           {fmtTime(f.baslangic_saati)} - {fmtTime(f.bitis_saati)}
                         </div>
-                        <div className="text-[11px] font-extrabold truncate leading-tight mt-0.5">
+                        <div className="text-[11px] md:text-[12px] font-extrabold truncate leading-tight mt-0.5">
                           {isGrup ? names : (katilim[0]?.musteriler?.adi || '')}
                         </div>
-                        <div className="text-[9px] truncate leading-none mt-0.5">
+                        <div className="text-[9px] md:text-[10px] truncate leading-none mt-0.5">
                           {f.hizmetler?.adi} {isGrup ? `• Grup ${katilim.length}/${cap}` : ''}
                         </div>
                       </div>
