@@ -201,7 +201,7 @@ export default function MusteriDetayModal({ musteri, onClose, onRandevuClick, on
               {borc > 0 && (
                 <button
                   onClick={() => onOdemeClick && onOdemeClick(p)}
-                  className="text-[10px] md:text-[11px] font-extrabold bg-amber-500 text-white px-2 py-1 rounded-full"
+                  className={`text-[10px] md:text-[11px] font-extrabold bg-amber-500 hover:bg-amber-600 text-white px-2 py-1 rounded-full transition ${isAdmin ? '' : 'hidden md:inline-block'}`}
                 >
                   {borc.toLocaleString('tr-TR')} TL Borç (Öde)
                 </button>
@@ -244,17 +244,19 @@ export default function MusteriDetayModal({ musteri, onClose, onRandevuClick, on
             <p className="text-[11px] md:text-[12px] font-bold text-slate-500">{musteri.telefon || '-'}</p>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={aktifDegistir}
-              disabled={aktifKayit}
-              className={`text-[10px] md:text-[11px] font-extrabold px-2.5 py-1 rounded-full border disabled:opacity-50 ${
-                aktifMi
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  : 'bg-slate-100 text-slate-500 border-slate-200'
-              }`}
-            >
-              {aktifKayit ? '...' : aktifMi ? 'Aktif' : 'Pasif'}
-            </button>
+            {isAdmin && (
+              <button
+                onClick={aktifDegistir}
+                disabled={aktifKayit}
+                className={`text-[10px] md:text-[11px] font-extrabold px-2.5 py-1 rounded-full border disabled:opacity-50 transition ${
+                  aktifMi
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 md:hover:bg-emerald-100'
+                    : 'bg-slate-100 text-slate-500 border-slate-200 md:hover:bg-slate-200'
+                }`}
+              >
+                {aktifKayit ? '...' : aktifMi ? 'Aktif' : 'Pasif'}
+              </button>
+            )}
             <button onClick={onClose} className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
               <X className="w-5 h-5" />
             </button>

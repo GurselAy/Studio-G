@@ -51,6 +51,7 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
   const [mevcutPaket, setMevcutPaket] = useState(null);
   const [loading, setLoading] = useState(false);
   const [hata, setHata] = useState(null);
+  const [cakisma, setCakisma] = useState(null); // seçilen eğitmen+tarih+saat için önizleme
 
   useEffect(() => {
     if (isOpen) {
@@ -111,6 +112,58 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
   const kapasite = hizmetDetay?.katilim_sayisi || 1;
   const toplamSeans = parseInt(seansSayisi) || 0;
   const paketYeterli = !isGrup && !yeniMusteriModu && mevcutPaket && mevcutPaket.planlanabilir >= toplamSeans;
+
+  /* ÇAKIŞMA ÖNİZLEMESİ
+     Seçilen eğitmen + tarih + saat için mevcut ders var mı?
+     - Aynı grup dersi ise  : "mevcut gruba dahil edilecek" bilgisi (kontenjan ile birlikte)
+     - Başka bir ders ise   : "eğitmen dolu" uyarısı (bireysel / başka grup)
+     Kaydetme mantığı değişmedi; bu sadece önceden bilgi verir. */
+  useEffect(() => {
+    if (!isOpen || !secilenEgitmen || !secilenHizmet || !tarih || !saat) {
+      setCakisma(null);
+      return;
+    }
+    let iptal = false;
+    const zaman = setTimeout(async () => {
+      try {
+        const [y, m, d] = tarih.split('-').map(Number);
+        const [sh, sm] = saat.split(':').map(Number);
+        const sure = hizmetDetay?.sure || 50;
+        const bas = new Date(y, m - 1, d, sh, sm, 0);
+        const bit = new Date(bas.getTime() + sure * 60000);
+        const { data } = await supabase
+          .from('randevular')
+          .select('id, seri_id, hizmet_id, egitmen_id, baslangic_saati, bitis_saati, hizmetler(adi, tur, katilim_sayisi)')
+          .eq('egitmen_id', secilenEgitmen)
+          .neq('durum', 'iptal edildi')
+          .lt('baslangic_saati', bit.toISOString())
+          .gt('bitis_saati', bas.toISOString());
+        if (iptal) return;
+        const liste = data || [];
+        if (liste.length === 0) { setCakisma(null); return; }
+        const ders = liste[0];
+        const ayniGrup =
+          liste.length === 1 &&
+          isGrup &&
+          ders.hizmetler?.tur === 'Grup' &&
+          ders.hizmet_id === secilenHizmet &&
+          new Date(ders.baslangic_saati).getTime() === bas.getTime();
+        const kap = ders.hizmetler?.katilim_sayisi || kapasite;
+        let dolu = 0;
+        if (ayniGrup) {
+          const { data: kat } = await supabase
+            .from('randevu_katilimcilari')
+            .select('id')
+            .eq('randevu_id', ders.id);
+          dolu = (kat || []).length;
+        }
+        if (!iptal) setCakisma({ tip: ayniGrup ? 'grup' : 'dolu', ders, dolu, kap });
+      } catch (_) {
+        if (!iptal) setCakisma(null);
+      }
+    }, 400);
+    return () => { iptal = true; clearTimeout(zaman); };
+  }, [isOpen, secilenEgitmen, secilenHizmet, tarih, saat, isGrup, kapasite, hizmetDetay?.sure]);
 
   const grubaEkle = () => {
     if (!secilenMusteri) return;
@@ -397,6 +450,48 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess, secile
           </button>
         </div>
         {hata && <div className="mt-2 p-2 bg-red-50 text-red-600 text-xs md:text-[13px] font-bold rounded border border-red-100">{hata}</div>}
+
+        {cakisma && (
+          <div
+            className={`mt-2 p-2.5 rounded-xl border text-[11px] md:text-[12px] font-bold ${
+              cakisma.tip === 'grup' && cakisma.dolu < cakisma.kap
+                ? 'bg-sky-50 border-sky-200 text-sky-800'
+                : 'bg-rose-50 border-rose-200 text-rose-700'
+            }`}
+          >
+            {cakisma.tip === 'grup' ? (
+              <>
+                <div className="font-extrabold">
+                  ℹ️ Bu saatte aynı grup dersi var — katılımcı(lar) MEVCUT GRUBA dahil edilecek.
+                </div>
+                <div className="mt-0.5 font-bold">
+                  {cakisma.ders?.hizmetler?.adi} • {saat} • Kontenjan {cakisma.dolu}/{cakisma.kap}
+                  {cakisma.dolu >= cakisma.kap ? ' — DOLU' : ''}
+                </div>
+                {cakisma.dolu >= cakisma.kap ? (
+                  <div className="mt-1 font-extrabold">
+                    Kontenjan dolu. Başka bir saat seçin veya yeni bir grup saati oluşturun.
+                  </div>
+                ) : (
+                  <div className="mt-1 font-bold">
+                    Yeni ders oluşturulmaz; sadece seçilen müşteri bu grubun kalan seanslarına eklenir.
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="font-extrabold">⛔ Eğitmen bu tarih ve saatte dolu.</div>
+                <div className="mt-0.5 font-bold">
+                  {tarih} {saat} • {cakisma.ders?.hizmetler?.adi}
+                  {cakisma.ders?.hizmetler?.tur === 'Grup' ? ' (başka grup)' : ' (bireysel)'}
+                </div>
+                <div className="mt-1 font-bold">
+                  Farklı bir saat seçin. Aynı saatte yalnızca aynı gruba katılımcı eklenebilir.
+                </div>
+              </>
+            )}
+          </div>
+        )}
         <form onSubmit={kaydet} className="mt-3 space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-4">
           <div>
             <label className="text-xs md:text-[13px] font-extrabold text-slate-900">Ders / Hizmet</label>

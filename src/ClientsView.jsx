@@ -300,7 +300,7 @@ export default function ClientsView({ userRole }) {
                           {borc > 0 && (
                             <button
                               onClick={(e) => { e.stopPropagation(); setOdeme({ paket: p, musteri: { id: m.id, adi: m.adi } }); }}
-                              className="text-[10px] md:text-[11px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full flex items-center gap-1 active:scale-95 md:hover:bg-emerald-100 transition"
+                              className={`text-[10px] md:text-[11px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full items-center gap-1 active:scale-95 md:hover:bg-emerald-100 transition ${isAdmin ? 'flex' : 'hidden md:flex'}`}
                             >
                               <CreditCard className="w-3 h-3" /> Öde
                             </button>

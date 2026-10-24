@@ -3,11 +3,13 @@ import { supabase } from './supabaseClient.js';
 import TakvimView from './TakvimView.jsx';
 import AjandaView from './AjandaView.jsx';
 import ClientsView from './ClientsView.jsx';
-import DigerView from './DigerView.jsx';
+// import DigerView from './DigerView.jsx';
 import NewAppointmentModal from './NewAppointmentModal.jsx';
 import RandevuDetailModal from './RandevuDetailModal.jsx';
 import { CalendarIcon, Users, Clock, Plus, ChevronLeft, ChevronRight, UserCircle } from './Icons.jsx';
 import { useMasaustu } from './useMasaustu.js';
+
+const DigerView = React.lazy(() => import('./DigerView.jsx'));
 
 const SEKMELER = [
   { key: 'takvim', label: 'Takvim', icon: CalendarIcon },
@@ -38,37 +40,34 @@ export default function CalendarView() {
   const yenile = useCallback(() => setRefreshKey((k) => k + 1), []);
   const masaustu = useMasaustu();
 
+  /* AÇILIŞ: tek ağ turu.
+     - getUser() yerine getSession()  → /auth/v1/user çağrısı yok (yerelden okur)
+     - kullanicilar 1 kez çekilir     → kendi rolüm de aynı listeden bulunur */
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (data.user) {
-        setUserId(data.user.id);
-        const { data: prof } = await supabase
-          .from('kullanicilar')
-          .select('rol,adi')
-          .eq('id', data.user.id)
-          .maybeSingle();
-        if (prof) {
-          setUserRole(prof.rol);
-          setUserName(prof.adi);
-          if (prof.rol === 'Eğitmen') {
-            setSecilenEgitmen(data.user.id);
-          }
-        }
+    let iptal = false;
+    const acilis = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const uid = session?.user?.id || null;
+      if (iptal) return;
+      setUserId(uid);
+
+      const { data: eg } = await supabase
+        .from('kullanicilar')
+        .select('id,adi,rol')
+        .order('adi');
+      if (iptal || !eg) return;
+      setEgitmenler(eg);
+
+      const ben = eg.find((k) => k.id === uid);
+      if (ben) {
+        setUserRole(ben.rol);
+        setUserName(ben.adi);
+        if (ben.rol === 'Eğitmen') setSecilenEgitmen(uid);
       }
-    });
+    };
+    acilis();
+    return () => { iptal = true; };
   }, []);
-
-  const veriGetir = useCallback(async () => {
-    const { data: eg } = await supabase
-      .from('kullanicilar')
-      .select('id,adi,rol')
-      .order('adi');
-    if (eg) setEgitmenler(eg);
-  }, []);
-
-  useEffect(() => {
-    veriGetir();
-  }, [veriGetir]);
 
   const siraliEgitmenler = useMemo(() => {
     if (!Array.isArray(egitmenler) || egitmenler.length === 0) return [];
@@ -120,7 +119,11 @@ export default function CalendarView() {
           />
         )}
         {aktifSekme === 'musteriler' && <ClientsView key={`musteriler-${refreshKey}`} userRole={userRole} />}
-        {aktifSekme === 'diger' && <DigerView userRole={userRole} />}
+        {aktifSekme === 'diger' && (
+          <React.Suspense fallback={<div className="p-6 text-center text-xs font-bold text-slate-400">Yükleniyor...</div>}>
+            <DigerView userRole={userRole} />
+          </React.Suspense>
+        )}
       </div>
     </>
   );

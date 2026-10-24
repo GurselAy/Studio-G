@@ -451,23 +451,26 @@ export default function RandevuDetailModal({ isOpen, onClose, randevu, onSuccess
               </select>
             </div>
 
-            <div>
-              <label className="font-extrabold text-slate-900">Durum</label>
-              <select
-                value={durum}
-                onChange={(e) => setDurum(e.target.value)}
-                className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold md:hover:border-slate-300 transition"
-              >
-                <option value="planlandı">Planlandı</option>
-                <option value="tamamlandı">Tamamlandı</option>
-                <option value="iptal edildi">İptal Edildi</option>
-              </select>
-              <p className="text-[10px] md:text-[11px] text-slate-500 mt-1">
-                {isGrup
-                  ? 'Saat ve durum dersin kendisine yazılır, tüm katılımcılar aynı kalır. Tamamlandı: herkesin paketinden 1 seans düşer. Planlandı\'ya dönüşte seanslar iade edilir.'
-                  : 'Tamamlandı: seans düşer, hakediş eklenir. İptal: seans düşer, hakediş eklenmez. Planlandı\'ya geri alınırsa seans ve hakediş iade edilir.'}
-              </p>
-            </div>
+            {/* Durum değişikliği SADECE yöneticide görünür (eğitmen görmez, durum olduğu gibi kalır) */}
+            {isAdmin && (
+              <div>
+                <label className="font-extrabold text-slate-900">Durum</label>
+                <select
+                  value={durum}
+                  onChange={(e) => setDurum(e.target.value)}
+                  className="w-full mt-1 px-3 py-2.5 border rounded-xl bg-slate-50 font-bold md:hover:border-slate-300 transition"
+                >
+                  <option value="planlandı">Planlandı</option>
+                  <option value="tamamlandı">Tamamlandı</option>
+                  <option value="iptal edildi">İptal Edildi</option>
+                </select>
+                <p className="text-[10px] md:text-[11px] text-slate-500 mt-1">
+                  {isGrup
+                    ? 'Saat ve durum dersin kendisine yazılır, tüm katılımcılar aynı kalır. Tamamlandı: herkesin paketinden 1 seans düşer. Planlandı\'ya dönüşte seanslar iade edilir.'
+                    : 'Tamamlandı: seans düşer, hakediş eklenir. İptal: seans düşer, hakediş eklenmez. Planlandı\'ya geri alınırsa seans ve hakediş iade edilir.'}
+                </p>
+              </div>
+            )}
 
             <button
               onClick={guncelle}
