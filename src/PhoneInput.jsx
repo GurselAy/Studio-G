@@ -77,7 +77,10 @@ export default function PhoneInput({ value, onChange, required }) {
   const parsed = parseValue(value);
   const [acik, setAcik] = useState(false);
   const [q, setQ] = useState('');
+  // Liste aşağıda yer yoksa YUKARI açılır (modal içinde kırpılmasın diye)
+  const [yukari, setYukari] = useState(false);
   const wrap = useRef(null);
+  const btn = useRef(null);
   const ulke = ULKELER.find((u) => u.dial === parsed.dial) || ULKELER[0];
 
   useEffect(() => {
@@ -107,19 +110,37 @@ export default function PhoneInput({ value, onChange, required }) {
     onChange(telKaydet(parsed.dial + d));
   };
 
+  /* Butonu açmadan önce aşağıda ne kadar yer var ölç:
+     liste ~290px (arama + 5 satır). Yetmiyorsa yukarı aç. */
+  const acKapa = () => {
+    if (acik) {
+      setAcik(false);
+      return;
+    }
+    const r = btn.current?.getBoundingClientRect();
+    const altBosluk = r ? window.innerHeight - r.bottom : 999;
+    setYukari(altBosluk < 300);
+    setAcik(true);
+  };
+
   return (
     <div ref={wrap} className="flex gap-2">
       <div className="relative shrink-0">
         <button
+          ref={btn}
           type="button"
-          onClick={() => setAcik(!acik)}
+          onClick={acKapa}
           className="h-full px-2.5 py-2.5 border rounded-xl bg-slate-50 font-bold text-sm flex items-center gap-1"
         >
           <span>{ulke.flag}</span>
           <span>+{ulke.dial}</span>
         </button>
         {acik && (
-          <div className="absolute z-20 mt-1 w-52 bg-white border rounded-xl shadow-lg overflow-hidden">
+          <div
+            className={`absolute z-50 w-52 bg-white border rounded-xl shadow-lg overflow-hidden ${
+              yukari ? 'bottom-full mb-1' : 'top-full mt-1'
+            }`}
+          >
             <input
               autoFocus
               value={q}
@@ -127,7 +148,8 @@ export default function PhoneInput({ value, onChange, required }) {
               placeholder="90 veya ülke"
               className="w-full px-2 py-2 border-b text-xs font-bold"
             />
-            <div className="overflow-y-auto max-h-44">
+            {/* 5 satır görünür, fazlası kaydırmalı */}
+            <div className="overflow-y-auto overscroll-contain max-h-[15rem]">
               {liste.length === 0 ? (
                 <div className="px-3 py-2 text-[11px] font-bold text-slate-400">Yok</div>
               ) : (
